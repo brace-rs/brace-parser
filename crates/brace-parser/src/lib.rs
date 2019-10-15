@@ -1,6 +1,8 @@
 pub use self::error::Error;
 
+pub mod character;
 pub mod error;
+pub mod sequence;
 
 pub trait Parser<'a, O> {
     fn parse(&self, input: &'a str) -> Result<(O, &'a str), Error>;
