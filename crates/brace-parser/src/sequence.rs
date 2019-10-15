@@ -1,5 +1,27 @@
 use crate::{take, take_while, Error, Parser};
 
+pub fn sequence<'a, 'b>(sequence: &'b str) -> impl Parser<'a, &'b str>
+where
+    'a: 'b,
+{
+    move |mut input: &'a str| {
+        for ch in sequence.chars() {
+            match take(|character| character == &ch).parse(input) {
+                Ok((out, rem)) => {
+                    if out.chars().next().unwrap() == ch {
+                        input = rem;
+                    } else {
+                        return Err(Error::unexpected(ch));
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        Ok((sequence, input))
+    }
+}
+
 pub fn digit(input: &str) -> Result<(&str, &str), Error> {
     take(char::is_ascii_digit).parse(input)
 }
@@ -92,6 +114,18 @@ pub fn whitespaces(input: &str) -> Result<(&str, &str), Error> {
 mod tests {
     use super::*;
     use crate::{parse, Error};
+
+    #[test]
+    fn test_sequence() {
+        assert_eq!(parse("", sequence("hello")), Err(Error::incomplete()));
+        assert_eq!(parse("h", sequence("hello")), Err(Error::incomplete()));
+        assert_eq!(
+            parse("help", sequence("hello")),
+            Err(Error::unexpected('p'))
+        );
+        assert_eq!(parse("hello", sequence("hello")), Ok(("hello", "")));
+        assert_eq!(parse("hello$", sequence("hello")), Ok(("hello", "$")));
+    }
 
     #[test]
     fn test_digit() {
