@@ -1,4 +1,17 @@
-use crate::{sequence, Error};
+use std::borrow::Borrow;
+
+use crate::{sequence, take, Error, Parser};
+
+pub fn character<'a, T>(ch: T) -> impl Parser<'a, char>
+where
+    T: Borrow<char>,
+{
+    move |input| {
+        take(|character| character == ch.borrow())
+            .parse(input)
+            .map(|(_, rem)| (*ch.borrow(), rem))
+    }
+}
 
 pub fn digit(input: &str) -> Result<(char, &str), Error> {
     sequence::digit(input).and_then(|(out, rem)| Ok((out.chars().next().unwrap(), rem)))
@@ -48,6 +61,15 @@ pub fn whitespace(input: &str) -> Result<(char, &str), Error> {
 mod tests {
     use super::*;
     use crate::{parse, Error};
+
+    #[test]
+    fn test_character() {
+        assert_eq!(parse("", character('h')), Err(Error::incomplete()));
+        assert_eq!(parse("$", character('h')), Err(Error::unexpected('$')));
+        assert_eq!(parse("h", character('h')), Ok(('h', "")));
+        assert_eq!(parse("hello", character('h')), Ok(('h', "ello")));
+        assert_eq!(parse("hello", character(&'h')), Ok(('h', "ello")));
+    }
 
     #[test]
     fn test_digit() {
