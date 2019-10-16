@@ -7,6 +7,10 @@ pub fn optional<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Option<O>>
     }
 }
 
+pub fn either<'a, O>(a: impl Parser<'a, O>, b: impl Parser<'a, O>) -> impl Parser<'a, O> {
+    move |input| a.parse(input).or_else(|_| b.parse(input))
+}
+
 pub fn pair<'a, A, B>(a: impl Parser<'a, A>, b: impl Parser<'a, B>) -> impl Parser<'a, (A, B)> {
     move |input| {
         a.parse(input)
@@ -59,6 +63,26 @@ mod tests {
             parse("hello world", optional("hello")),
             Ok((Some("hello"), " world"))
         );
+    }
+
+    #[test]
+    fn test_either() {
+        assert_eq!(parse("", either("one", "two")), Err(Error::incomplete()));
+        assert_eq!(
+            parse("$", either("one", "two")),
+            Err(Error::unexpected('$'))
+        );
+        assert_eq!(parse("one", either("one", "two")), Ok(("one", "")));
+        assert_eq!(parse("two", either("one", "two")), Ok(("two", "")));
+        assert_eq!(
+            parse("three", either("one", "two")),
+            Err(Error::unexpected('h'))
+        );
+        assert_eq!(
+            parse("three", either("two", "one")),
+            Err(Error::unexpected('t'))
+        );
+        assert_eq!(parse("onetwo", either("one", "two")), Ok(("one", "two")));
     }
 
     #[test]
