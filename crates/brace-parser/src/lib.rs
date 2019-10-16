@@ -1,6 +1,7 @@
 pub use self::error::Error;
 
 pub mod character;
+pub mod combinator;
 pub mod error;
 pub mod sequence;
 
