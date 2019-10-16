@@ -1,5 +1,12 @@
 use crate::Parser;
 
+pub fn optional<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Option<O>> {
+    move |input| match parser.parse(input) {
+        Ok((out, rem)) => Ok((Some(out), rem)),
+        Err(_) => Ok((None, input)),
+    }
+}
+
 pub fn pair<'a, A, B>(a: impl Parser<'a, A>, b: impl Parser<'a, B>) -> impl Parser<'a, (A, B)> {
     move |input| {
         a.parse(input)
@@ -42,6 +49,17 @@ mod tests {
     use super::*;
     use crate::sequence::{alphabetics, whitespaces};
     use crate::{parse, Error};
+
+    #[test]
+    fn test_optional() {
+        assert_eq!(parse("", optional("hello")), Ok((None, "")));
+        assert_eq!(parse("$", optional("hello")), Ok((None, "$")));
+        assert_eq!(parse("hello", optional("hello")), Ok((Some("hello"), "")));
+        assert_eq!(
+            parse("hello world", optional("hello")),
+            Ok((Some("hello"), " world"))
+        );
+    }
 
     #[test]
     fn test_pair() {
