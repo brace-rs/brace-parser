@@ -19,6 +19,24 @@ pub fn trio<'a, A, B, C>(
     }
 }
 
+pub fn leading<'a, O, L>(
+    leading: impl Parser<'a, L>,
+    parser: impl Parser<'a, O>,
+) -> impl Parser<'a, O> {
+    move |input| leading.parse(input).and_then(|(_, rem)| parser.parse(rem))
+}
+
+pub fn trailing<'a, O, T>(
+    parser: impl Parser<'a, O>,
+    trailing: impl Parser<'a, T>,
+) -> impl Parser<'a, O> {
+    move |input| {
+        parser
+            .parse(input)
+            .and_then(|(out, rem)| trailing.parse(rem).map(|(_, rem)| (out, rem)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,6 +107,70 @@ mod tests {
         assert_eq!(
             parse("hello \n universe", trio("hello", whitespaces, alphabetics)),
             Ok((("hello", " \n ", "universe"), ""))
+        );
+    }
+
+    #[test]
+    fn test_leading() {
+        assert_eq!(
+            parse("", leading("hello world", "!")),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("hello", leading("hello world", "!")),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("hello world", leading("hello world", "!")),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("hello world!", leading("hello world", "!")),
+            Ok(("!", ""))
+        );
+        assert_eq!(
+            parse("hello world!!", leading("hello world", "!")),
+            Ok(("!", "!"))
+        );
+        assert_eq!(
+            parse("hello world?", leading("hello world", "!")),
+            Err(Error::unexpected('?'))
+        );
+        assert_eq!(
+            parse("hello universe!", leading("hello world", "!")),
+            Err(Error::unexpected('u'))
+        );
+    }
+
+    #[test]
+    fn test_trailing() {
+        assert_eq!(
+            parse("", trailing("hello world", "!")),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("hello", trailing("hello world", "!")),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("hello world", trailing("hello world", "!")),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("hello world!", trailing("hello world", "!")),
+            Ok(("hello world", ""))
+        );
+        assert_eq!(
+            parse("hello world!!", trailing("hello world", "!")),
+            Ok(("hello world", "!"))
+        );
+        assert_eq!(
+            parse("hello world?", trailing("hello world", "!")),
+            Err(Error::unexpected('?'))
+        );
+        assert_eq!(
+            parse("hello universe!", trailing("hello world", "!")),
+            Err(Error::unexpected('u'))
         );
     }
 }
