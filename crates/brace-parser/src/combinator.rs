@@ -51,7 +51,7 @@ pub fn trailing<'a, O, T>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sequence::{alphabetics, whitespaces};
+    use crate::sequence::{alphabetic, whitespace};
     use crate::{parse, Error};
 
     #[test]
@@ -107,14 +107,14 @@ mod tests {
         assert_eq!(
             parse(
                 "hello \n world",
-                pair("hello", pair(whitespaces, alphabetics))
+                pair("hello", pair(whitespace, alphabetic))
             ),
             Ok((("hello", (" \n ", "world")), ""))
         );
         assert_eq!(
             parse(
                 "hello \n universe",
-                pair("hello", pair(whitespaces, alphabetics))
+                pair("hello", pair(whitespace, alphabetic))
             ),
             Ok((("hello", (" \n ", "universe")), ""))
         );
@@ -143,11 +143,11 @@ mod tests {
             Err(Error::unexpected('g'))
         );
         assert_eq!(
-            parse("hello \n world", trio("hello", whitespaces, alphabetics)),
+            parse("hello \n world", trio("hello", whitespace, alphabetic)),
             Ok((("hello", " \n ", "world"), ""))
         );
         assert_eq!(
-            parse("hello \n universe", trio("hello", whitespaces, alphabetics)),
+            parse("hello \n universe", trio("hello", whitespace, alphabetic)),
             Ok((("hello", " \n ", "universe"), ""))
         );
     }
