@@ -4,6 +4,7 @@ pub mod character;
 pub mod combinator;
 pub mod error;
 pub mod sequence;
+pub mod util;
 
 pub trait Parser<'a, O> {
     fn parse(&self, input: &'a str) -> Result<(O, &'a str), Error>;
