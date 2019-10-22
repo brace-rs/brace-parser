@@ -10,17 +10,6 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn incomplete() -> Self {
-        Self::Expected(Expected::expected(Expect::Match).found(()))
-    }
-
-    pub fn unexpected<T>(unexpected: T) -> Self
-    where
-        T: Into<Expect>,
-    {
-        Self::Expected(Expected::expected(Expect::Match).found(unexpected))
-    }
-
     pub fn expected<T>(expected: T) -> Self
     where
         T: Into<Expected>,

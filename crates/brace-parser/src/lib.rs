@@ -53,10 +53,10 @@ where
             if predicate(&ch) {
                 Ok(input.split_at(ch.len_utf8()))
             } else {
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Expect::Match, ch)))
             }
         }
-        None => Err(Error::incomplete()),
+        None => Err(Error::expected((Expect::Match, ()))),
     }
 }
 
@@ -83,10 +83,10 @@ where
 
                     Ok(input.split_at(pos))
                 } else {
-                    Err(Error::unexpected(ch))
+                    Err(Error::expected((Expect::Match, ch)))
                 }
             }
-            None => Err(Error::incomplete()),
+            None => Err(Error::expected((Expect::Match, ()))),
         }
     }
 }
@@ -181,7 +181,7 @@ mod tests {
         );
         assert_eq!(
             parse("hello world", take(|_| false)),
-            Err(Error::unexpected('h'))
+            Err(Error::expected((Expect::Match, 'h')))
         );
         assert_eq!(parse("ß", take(|_| true)), Ok(("ß", "")));
         assert_eq!(parse("ℝ", take(|_| true)), Ok(("ℝ", "")));
@@ -193,7 +193,7 @@ mod tests {
     fn test_take_while() {
         assert_eq!(
             parse("", take_while(char::is_ascii_alphabetic)),
-            Err(Error::incomplete())
+            Err(Error::expected((Expect::Match, ())))
         );
         assert_eq!(
             parse("h", take_while(char::is_ascii_alphabetic)),
@@ -213,7 +213,7 @@ mod tests {
         );
         assert_eq!(
             parse("hello world", take_while(|_| false)),
-            Err(Error::unexpected('h'))
+            Err(Error::expected((Expect::Match, 'h')))
         );
         assert_eq!(parse("ß", take_while(|_| true)), Ok(("ß", "")));
         assert_eq!(parse("ℝ", take_while(|_| true)), Ok(("ℝ", "")));
