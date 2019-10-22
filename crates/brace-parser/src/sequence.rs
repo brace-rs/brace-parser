@@ -131,6 +131,8 @@ mod tests {
                 Ok((&*(ch.to_string() + "$"), ""))
             );
         }
+
+        assert_eq!(parse("", any), Err(Error::incomplete()));
     }
 
     #[test]
@@ -156,6 +158,8 @@ mod tests {
                 Ok((&*(ch.to_string() + "$"), ""))
             );
         }
+
+        assert_eq!(parse("", Sequence::Any), Err(Error::incomplete()));
     }
 
     #[test]
