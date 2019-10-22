@@ -11,14 +11,14 @@ pub enum Error {
 
 impl Error {
     pub fn incomplete() -> Self {
-        Self::Expected(Expected::expect(Expect::Match).found(()))
+        Self::Expected(Expected::expected(Expect::Match).found(()))
     }
 
     pub fn unexpected<T>(unexpected: T) -> Self
     where
         T: Into<Expect>,
     {
-        Self::Expected(Expected::expect(Expect::Match).found(unexpected))
+        Self::Expected(Expected::expected(Expect::Match).found(unexpected))
     }
 
     pub fn expected<T>(expected: T) -> Self
@@ -51,11 +51,19 @@ impl Expected {
         Self(expect.into(), Some(found.into()))
     }
 
-    pub fn expect<T>(expect: T) -> Self
+    pub fn expected<T>(expect: T) -> Self
     where
         T: Into<Expect>,
     {
         Self(expect.into(), None)
+    }
+
+    pub fn expect<T>(mut self, expect: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        self.0 = expect.into();
+        self
     }
 
     pub fn found<T>(mut self, found: T) -> Self
@@ -109,6 +117,16 @@ impl From<String> for Expected {
 impl From<Sequence> for Expected {
     fn from(from: Sequence) -> Self {
         Self(from.into(), None)
+    }
+}
+
+impl<T, U> From<(T, U)> for Expected
+where
+    T: Into<Expect>,
+    U: Into<Expect>,
+{
+    fn from(from: (T, U)) -> Self {
+        Self(from.0.into(), Some(from.1.into()))
     }
 }
 

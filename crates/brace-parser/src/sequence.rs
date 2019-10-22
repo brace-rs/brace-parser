@@ -16,10 +16,10 @@ where
                     if ch == character {
                         pos += ch.len_utf8();
                     } else {
-                        return Err(Error::unexpected(character));
+                        return Err(Error::expected((ch, character)));
                     }
                 }
-                None => return Err(Error::incomplete()),
+                None => return Err(Error::expected((ch, ()))),
             }
         }
 
@@ -28,43 +28,81 @@ where
 }
 
 pub fn any(input: &str) -> Result<(&str, &str), Error> {
-    take_while(|_| true).parse(input)
+    take_while(|_| true).parse(input).map_err(|err| match err {
+        Error::Expected(expected) => Error::expected(expected.expect(Sequence::Any)),
+    })
 }
 
 pub fn decimal(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_digit).parse(input)
+    take_while(char::is_ascii_digit)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Decimal)),
+        })
 }
 
 pub fn hexadecimal(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_hexdigit).parse(input)
+    take_while(char::is_ascii_hexdigit)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Hexadecimal)),
+        })
 }
 
 pub fn alphabetic(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_alphabetic).parse(input)
+    take_while(char::is_ascii_alphabetic)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Alphabetic)),
+        })
 }
 
 pub fn alphanumeric(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_alphanumeric).parse(input)
+    take_while(char::is_ascii_alphanumeric)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Alphanumeric)),
+        })
 }
 
 pub fn lowercase(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_lowercase).parse(input)
+    take_while(char::is_ascii_lowercase)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Lowercase)),
+        })
 }
 
 pub fn uppercase(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_uppercase).parse(input)
+    take_while(char::is_ascii_uppercase)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Uppercase)),
+        })
 }
 
 pub fn indent(input: &str) -> Result<(&str, &str), Error> {
-    take_while(crate::util::is_ascii_indent).parse(input)
+    take_while(crate::util::is_ascii_indent)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Indent)),
+        })
 }
 
 pub fn linebreak(input: &str) -> Result<(&str, &str), Error> {
-    take_while(crate::util::is_ascii_linebreak).parse(input)
+    take_while(crate::util::is_ascii_linebreak)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Linebreak)),
+        })
 }
 
 pub fn whitespace(input: &str) -> Result<(&str, &str), Error> {
-    take_while(char::is_ascii_whitespace).parse(input)
+    take_while(char::is_ascii_whitespace)
+        .parse(input)
+        .map_err(|err| match err {
+            Error::Expected(expected) => Error::expected(expected.expect(Sequence::Whitespace)),
+        })
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -146,11 +184,17 @@ mod tests {
 
     #[test]
     fn test_sequence() {
-        assert_eq!(parse("", sequence("hello")), Err(Error::incomplete()));
-        assert_eq!(parse("h", sequence("hello")), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", sequence("hello")),
+            Err(Error::expected(('h', ())))
+        );
+        assert_eq!(
+            parse("h", sequence("hello")),
+            Err(Error::expected(('e', ())))
+        );
         assert_eq!(
             parse("help", sequence("hello")),
-            Err(Error::unexpected('p'))
+            Err(Error::expected(('l', 'p')))
         );
         assert_eq!(parse("hello", sequence("hello")), Ok(("hello", "")));
         assert_eq!(parse("hello$", sequence("hello")), Ok(("hello", "$")));
@@ -175,7 +219,7 @@ mod tests {
             );
         }
 
-        assert_eq!(parse("", any), Err(Error::incomplete()));
+        assert_eq!(parse("", any), Err(Error::expected((Sequence::Any, ()))));
     }
 
     #[test]
@@ -202,7 +246,10 @@ mod tests {
             );
         }
 
-        assert_eq!(parse("", Sequence::Any), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Any),
+            Err(Error::expected((Sequence::Any, ())))
+        );
     }
 
     #[test]
@@ -216,10 +263,16 @@ mod tests {
         }
 
         for ch in "$aZ\n".chars() {
-            assert_eq!(parse(&ch.to_string(), decimal), Err(Error::unexpected(ch)));
+            assert_eq!(
+                parse(&ch.to_string(), decimal),
+                Err(Error::expected((Sequence::Decimal, ch)))
+            );
         }
 
-        assert_eq!(parse("", decimal), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", decimal),
+            Err(Error::expected((Sequence::Decimal, ())))
+        );
         assert_eq!(parse("0123456789", decimal), Ok(("0123456789", "")));
         assert_eq!(parse("0123456789$", decimal), Ok(("0123456789", "$")));
     }
@@ -240,11 +293,14 @@ mod tests {
         for ch in "$aZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Decimal),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Decimal, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Decimal), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Decimal),
+            Err(Error::expected((Sequence::Decimal, ())))
+        );
         assert_eq!(
             parse("0123456789", Sequence::Decimal),
             Ok(("0123456789", ""))
@@ -271,11 +327,14 @@ mod tests {
         for ch in "$gZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), hexadecimal),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Hexadecimal, ch)))
             );
         }
 
-        assert_eq!(parse("", hexadecimal), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", hexadecimal),
+            Err(Error::expected((Sequence::Hexadecimal, ())))
+        );
         assert_eq!(
             parse("0123456789abcdefABCDEF", hexadecimal),
             Ok(("0123456789abcdefABCDEF", ""))
@@ -302,11 +361,14 @@ mod tests {
         for ch in "$gZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Hexadecimal),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Hexadecimal, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Hexadecimal), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Hexadecimal),
+            Err(Error::expected((Sequence::Hexadecimal, ())))
+        );
         assert_eq!(
             parse("0123456789abcdefABCDEF", Sequence::Hexadecimal),
             Ok(("0123456789abcdefABCDEF", ""))
@@ -333,11 +395,14 @@ mod tests {
         for ch in "$0 \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), alphabetic),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Alphabetic, ch)))
             );
         }
 
-        assert_eq!(parse("", alphabetic), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", alphabetic),
+            Err(Error::expected((Sequence::Alphabetic, ())))
+        );
         assert_eq!(
             parse(
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -370,11 +435,14 @@ mod tests {
         for ch in "$0 \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Alphabetic),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Alphabetic, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Alphabetic), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Alphabetic),
+            Err(Error::expected((Sequence::Alphabetic, ())))
+        );
         assert_eq!(
             parse(
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -407,11 +475,14 @@ mod tests {
         for ch in "$ \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), alphanumeric),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Alphanumeric, ch)))
             );
         }
 
-        assert_eq!(parse("", alphanumeric), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", alphanumeric),
+            Err(Error::expected((Sequence::Alphanumeric, ())))
+        );
         assert_eq!(
             parse(
                 "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -450,11 +521,14 @@ mod tests {
         for ch in "$ \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Alphanumeric),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Alphanumeric, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Alphanumeric), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Alphanumeric),
+            Err(Error::expected((Sequence::Alphanumeric, ())))
+        );
         assert_eq!(
             parse(
                 "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -493,11 +567,14 @@ mod tests {
         for ch in "$ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars() {
             assert_eq!(
                 parse(&ch.to_string(), lowercase),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Lowercase, ch)))
             );
         }
 
-        assert_eq!(parse("", lowercase), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", lowercase),
+            Err(Error::expected((Sequence::Lowercase, ())))
+        );
         assert_eq!(
             parse("abcdefghijklmnopqrstuvwxyz", lowercase),
             Ok(("abcdefghijklmnopqrstuvwxyz", ""))
@@ -524,11 +601,14 @@ mod tests {
         for ch in "$ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Lowercase),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Lowercase, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Lowercase), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Lowercase),
+            Err(Error::expected((Sequence::Lowercase, ())))
+        );
         assert_eq!(
             parse("abcdefghijklmnopqrstuvwxyz", Sequence::Lowercase),
             Ok(("abcdefghijklmnopqrstuvwxyz", ""))
@@ -555,11 +635,14 @@ mod tests {
         for ch in "$abcdefghijklmnopqrstuvwxyz".chars() {
             assert_eq!(
                 parse(&ch.to_string(), uppercase),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Uppercase, ch)))
             );
         }
 
-        assert_eq!(parse("", uppercase), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", uppercase),
+            Err(Error::expected((Sequence::Uppercase, ())))
+        );
         assert_eq!(
             parse("ABCDEFGHIJKLMNOPQRSTUVWXYZ", uppercase),
             Ok(("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ""))
@@ -586,11 +669,14 @@ mod tests {
         for ch in "$abcdefghijklmnopqrstuvwxyz".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Uppercase),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Uppercase, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Uppercase), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Uppercase),
+            Err(Error::expected((Sequence::Uppercase, ())))
+        );
         assert_eq!(
             parse("ABCDEFGHIJKLMNOPQRSTUVWXYZ", Sequence::Uppercase),
             Ok(("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ""))
@@ -612,10 +698,16 @@ mod tests {
         }
 
         for ch in "$\n".chars() {
-            assert_eq!(parse(&ch.to_string(), indent), Err(Error::unexpected(ch)));
+            assert_eq!(
+                parse(&ch.to_string(), indent),
+                Err(Error::expected((Sequence::Indent, ch)))
+            );
         }
 
-        assert_eq!(parse("", indent), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", indent),
+            Err(Error::expected((Sequence::Indent, ())))
+        );
         assert_eq!(parse(" \t \t ", indent), Ok((" \t \t ", "")));
     }
 
@@ -635,11 +727,14 @@ mod tests {
         for ch in "$\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Indent),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Indent, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Indent), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Indent),
+            Err(Error::expected((Sequence::Indent, ())))
+        );
         assert_eq!(parse(" \t \t ", Sequence::Indent), Ok((" \t \t ", "")));
     }
 
@@ -659,11 +754,14 @@ mod tests {
         for ch in "$ \t".chars() {
             assert_eq!(
                 parse(&ch.to_string(), linebreak),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Linebreak, ch)))
             );
         }
 
-        assert_eq!(parse("", linebreak), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", linebreak),
+            Err(Error::expected((Sequence::Linebreak, ())))
+        );
         assert_eq!(parse("\n\r\u{000C}", linebreak), Ok(("\n\r\u{000C}", "")));
         assert_eq!(parse("\n\r\u{000C}$", linebreak), Ok(("\n\r\u{000C}", "$")));
     }
@@ -684,11 +782,14 @@ mod tests {
         for ch in "$ \t".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Linebreak),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Linebreak, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Linebreak), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Linebreak),
+            Err(Error::expected((Sequence::Linebreak, ())))
+        );
         assert_eq!(
             parse("\n\r\u{000C}", Sequence::Linebreak),
             Ok(("\n\r\u{000C}", ""))
@@ -715,11 +816,14 @@ mod tests {
         for ch in "$a".chars() {
             assert_eq!(
                 parse(&ch.to_string(), whitespace),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Whitespace, ch)))
             );
         }
 
-        assert_eq!(parse("", whitespace), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", whitespace),
+            Err(Error::expected((Sequence::Whitespace, ())))
+        );
         assert_eq!(
             parse(" \t\n\r\u{000C}", whitespace),
             Ok((" \t\n\r\u{000C}", ""))
@@ -746,11 +850,14 @@ mod tests {
         for ch in "$a".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Sequence::Whitespace),
-                Err(Error::unexpected(ch))
+                Err(Error::expected((Sequence::Whitespace, ch)))
             );
         }
 
-        assert_eq!(parse("", Sequence::Whitespace), Err(Error::incomplete()));
+        assert_eq!(
+            parse("", Sequence::Whitespace),
+            Err(Error::expected((Sequence::Whitespace, ())))
+        );
         assert_eq!(
             parse(" \t\n\r\u{000C}", Sequence::Whitespace),
             Ok((" \t\n\r\u{000C}", ""))
@@ -765,15 +872,15 @@ mod tests {
     fn test_custom_variant() {
         assert_eq!(
             parse("", Sequence::custom("hello")),
-            Err(Error::incomplete())
+            Err(Error::expected(('h', ())))
         );
         assert_eq!(
             parse("h", Sequence::custom("hello")),
-            Err(Error::incomplete())
+            Err(Error::expected(('e', ())))
         );
         assert_eq!(
             parse("help", Sequence::custom("hello")),
-            Err(Error::unexpected('p'))
+            Err(Error::expected(('l', 'p')))
         );
         assert_eq!(parse("hello", Sequence::custom("hello")), Ok(("hello", "")));
         assert_eq!(
