@@ -106,6 +106,12 @@ impl<'a> Parser<'a, char> for Character {
     }
 }
 
+impl From<char> for Character {
+    fn from(from: char) -> Self {
+        Self::Custom(from)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

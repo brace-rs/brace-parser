@@ -98,6 +98,18 @@ impl<'a> Parser<'a, &'a str> for Sequence {
     }
 }
 
+impl From<&str> for Sequence {
+    fn from(from: &str) -> Self {
+        Self::Custom(from.to_owned())
+    }
+}
+
+impl From<String> for Sequence {
+    fn from(from: String) -> Self {
+        Self::Custom(from)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
