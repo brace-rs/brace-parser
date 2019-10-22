@@ -63,6 +63,30 @@ where
     move |input| parser.parse(input).map(|(out, rem)| (map(out), rem))
 }
 
+pub fn list<'a, T, S>(
+    parser: impl Parser<'a, T>,
+    separator: impl Parser<'a, S>,
+) -> impl Parser<'a, Vec<T>> {
+    move |input| {
+        parser.parse(input).and_then(|(out, mut rem)| {
+            let mut out = vec![out];
+
+            loop {
+                if let Ok((_, next)) = separator.parse(rem) {
+                    if let Ok((item, next)) = parser.parse(next) {
+                        out.push(item);
+                        rem = next;
+
+                        continue;
+                    }
+                }
+
+                return Ok((out, rem));
+            }
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -270,6 +294,28 @@ mod tests {
         assert_eq!(
             parse("hello", map('h', Option::Some)),
             Ok((Some('h'), "ello"))
+        );
+    }
+
+    #[test]
+    fn test_list() {
+        assert_eq!(
+            parse("", list('a', ',')),
+            Err(Error::expect('a').but_found_end())
+        );
+        assert_eq!(parse("a", list('a', ',')), Ok((vec!['a'], "")));
+        assert_eq!(parse("a,a", list('a', ',')), Ok((vec!['a', 'a'], "")));
+        assert_eq!(
+            parse("a,a,a", list('a', ',')),
+            Ok((vec!['a', 'a', 'a'], ""))
+        );
+        assert_eq!(
+            parse("a,a,a b", list('a', ',')),
+            Ok((vec!['a', 'a', 'a'], " b"))
+        );
+        assert_eq!(
+            parse("a,a,a,b", list('a', ',')),
+            Ok((vec!['a', 'a', 'a'], ",b"))
         );
     }
 }
