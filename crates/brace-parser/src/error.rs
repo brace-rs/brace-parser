@@ -8,7 +8,7 @@ use crate::sequence::Sequence;
 pub enum Error {
     Incomplete,
     Unexpected(char),
-    Expected(Expect),
+    Expected(Expected),
 }
 
 impl Error {
@@ -20,11 +20,11 @@ impl Error {
         Self::Unexpected(ch)
     }
 
-    pub fn expected<T>(expect: T) -> Self
+    pub fn expected<T>(expected: T) -> Self
     where
-        T: Into<Expect>,
+        T: Into<Expected>,
     {
-        Self::Expected(expect.into())
+        Self::Expected(expected.into())
     }
 }
 
@@ -35,8 +35,75 @@ impl fmt::Display for Error {
         match self {
             Self::Incomplete => write!(f, "Error: Unexpected end of input"),
             Self::Unexpected(ch) => write!(f, "Error: Unexpected character: '{}'", ch),
-            Self::Expected(expect) => write!(f, "Error: Expected {}", expect),
+            Self::Expected(expect) => write!(f, "Error: {}", expect),
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Expected(Expect, Option<Expect>);
+
+impl Expected {
+    pub fn new<T, U>(expect: T, found: U) -> Self
+    where
+        T: Into<Expect>,
+        U: Into<Expect>,
+    {
+        Self(expect.into(), Some(found.into()))
+    }
+
+    pub fn expect<T>(expect: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        Self(expect.into(), None)
+    }
+
+    pub fn found<T>(mut self, found: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        self.1 = Some(found.into());
+        self
+    }
+}
+
+impl fmt::Display for Expected {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.1 {
+            Some(found) => write!(f, "Expected {}; Found {}", self.0, found),
+            None => write!(f, "Expected {}", self.0),
+        }
+    }
+}
+
+impl From<char> for Expected {
+    fn from(from: char) -> Self {
+        Self(from.into(), None)
+    }
+}
+
+impl From<Character> for Expected {
+    fn from(from: Character) -> Self {
+        Self(from.into(), None)
+    }
+}
+
+impl From<&str> for Expected {
+    fn from(from: &str) -> Self {
+        Self(from.into(), None)
+    }
+}
+
+impl From<String> for Expected {
+    fn from(from: String) -> Self {
+        Self(from.into(), None)
+    }
+}
+
+impl From<Sequence> for Expected {
+    fn from(from: Sequence) -> Self {
+        Self(from.into(), None)
     }
 }
 
