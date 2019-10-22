@@ -53,10 +53,10 @@ where
             if predicate(&ch) {
                 Ok(input.split_at(ch.len_utf8()))
             } else {
-                Err(Error::expected((Expect::Match, ch)))
+                Err(Error::found(ch))
             }
         }
-        None => Err(Error::expected((Expect::Match, ()))),
+        None => Err(Error::found_end()),
     }
 }
 
@@ -83,17 +83,17 @@ where
 
                     Ok(input.split_at(pos))
                 } else {
-                    Err(Error::expected((Expect::Match, ch)))
+                    Err(Error::found(ch))
                 }
             }
-            None => Err(Error::expected((Expect::Match, ()))),
+            None => Err(Error::found_end()),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse, take, take_while, Error, Expect, Parser};
+    use super::{parse, take, take_while, Error, Parser};
 
     struct Custom;
 
@@ -105,53 +105,59 @@ mod tests {
 
     #[test]
     fn test_parser_struct() {
-        assert_eq!(parse("", Custom), Err(Error::expected((Expect::Match, ()))));
-        assert_eq!(
-            parse("a", Custom),
-            Err(Error::expected((Expect::Match, 'a')))
-        );
+        assert_eq!(parse("", Custom), Err(Error::found_end()));
+        assert_eq!(parse("a", Custom), Err(Error::found('a')));
         assert_eq!(parse("$", Custom), Ok(("$", "")));
         assert_eq!(parse("$$", Custom), Ok(("$", "$")));
     }
 
     #[test]
     fn test_parser_char() {
-        assert_eq!(parse("", 'h'), Err(Error::expected(('h', ()))));
-        assert_eq!(parse("$", 'h'), Err(Error::expected(('h', '$'))));
+        assert_eq!(parse("", 'h'), Err(Error::expect('h').but_found_end()));
+        assert_eq!(parse("$", 'h'), Err(Error::expect('h').but_found('$')));
         assert_eq!(parse("h", 'h'), Ok(('h', "")));
         assert_eq!(parse("hello", 'h'), Ok(('h', "ello")));
     }
 
     #[test]
     fn test_parser_str() {
-        assert_eq!(parse("", "h"), Err(Error::expected(('h', ()))));
-        assert_eq!(parse("$", "h"), Err(Error::expected(('h', '$'))));
+        assert_eq!(parse("", "h"), Err(Error::expect('h').but_found_end()));
+        assert_eq!(parse("$", "h"), Err(Error::expect('h').but_found('$')));
         assert_eq!(parse("h", "h"), Ok(("h", "")));
         assert_eq!(parse("hello", "h"), Ok(("h", "ello")));
-        assert_eq!(parse("", "hello"), Err(Error::expected(('h', ()))));
-        assert_eq!(parse("h", "hello"), Err(Error::expected(('e', ()))));
-        assert_eq!(parse("help", "hello"), Err(Error::expected(('l', 'p'))));
+        assert_eq!(parse("", "hello"), Err(Error::expect('h').but_found_end()));
+        assert_eq!(parse("h", "hello"), Err(Error::expect('e').but_found_end()));
+        assert_eq!(
+            parse("help", "hello"),
+            Err(Error::expect('l').but_found('p'))
+        );
         assert_eq!(parse("hello", "hello"), Ok(("hello", "")));
         assert_eq!(parse("hello world", "hello"), Ok(("hello", " world")));
     }
 
     #[test]
     fn test_parser_string() {
-        assert_eq!(parse("", "h".to_owned()), Err(Error::expected(('h', ()))));
-        assert_eq!(parse("$", "h".to_owned()), Err(Error::expected(('h', '$'))));
+        assert_eq!(
+            parse("", "h".to_owned()),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("$", "h".to_owned()),
+            Err(Error::expect('h').but_found('$'))
+        );
         assert_eq!(parse("h", "h".to_owned()), Ok(("h", "")));
         assert_eq!(parse("hello", "h".to_owned()), Ok(("h", "ello")));
         assert_eq!(
             parse("", "hello".to_owned()),
-            Err(Error::expected(('h', ())))
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
             parse("h", "hello".to_owned()),
-            Err(Error::expected(('e', ())))
+            Err(Error::expect('e').but_found_end())
         );
         assert_eq!(
             parse("help", "hello".to_owned()),
-            Err(Error::expected(('l', 'p')))
+            Err(Error::expect('l').but_found('p'))
         );
         assert_eq!(parse("hello", "hello".to_owned()), Ok(("hello", "")));
         assert_eq!(
@@ -164,7 +170,7 @@ mod tests {
     fn test_take() {
         assert_eq!(
             parse("", take(char::is_ascii_alphabetic)),
-            Err(Error::expected((Expect::Match, ())))
+            Err(Error::found_end())
         );
         assert_eq!(parse("h", take(char::is_ascii_alphabetic)), Ok(("h", "")));
         assert_eq!(
@@ -181,7 +187,7 @@ mod tests {
         );
         assert_eq!(
             parse("hello world", take(|_| false)),
-            Err(Error::expected((Expect::Match, 'h')))
+            Err(Error::found('h'))
         );
         assert_eq!(parse("ß", take(|_| true)), Ok(("ß", "")));
         assert_eq!(parse("ℝ", take(|_| true)), Ok(("ℝ", "")));
@@ -193,7 +199,7 @@ mod tests {
     fn test_take_while() {
         assert_eq!(
             parse("", take_while(char::is_ascii_alphabetic)),
-            Err(Error::expected((Expect::Match, ())))
+            Err(Error::found_end())
         );
         assert_eq!(
             parse("h", take_while(char::is_ascii_alphabetic)),
@@ -213,7 +219,7 @@ mod tests {
         );
         assert_eq!(
             parse("hello world", take_while(|_| false)),
-            Err(Error::expected((Expect::Match, 'h')))
+            Err(Error::found('h'))
         );
         assert_eq!(parse("ß", take_while(|_| true)), Ok(("ß", "")));
         assert_eq!(parse("ℝ", take_while(|_| true)), Ok(("ℝ", "")));

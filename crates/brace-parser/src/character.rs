@@ -11,9 +11,7 @@ where
         take(|character| character == ch.borrow())
             .parse(input)
             .map(|(_, rem)| (*ch.borrow(), rem))
-            .map_err(|err| match err {
-                Error::Expected(expected) => Error::expected(expected.expect(*ch.borrow())),
-            })
+            .map_err(|err| err.but_expect(*ch.borrow()))
     }
 }
 
@@ -21,90 +19,70 @@ pub fn any(input: &str) -> Result<(char, &str), Error> {
     take(|_| true)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Any)),
-        })
+        .map_err(|err| err.but_expect(Character::Any))
 }
 
 pub fn decimal(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_digit)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Decimal)),
-        })
+        .map_err(|err| err.but_expect(Character::Decimal))
 }
 
 pub fn hexadecimal(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_hexdigit)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Hexadecimal)),
-        })
+        .map_err(|err| err.but_expect(Character::Hexadecimal))
 }
 
 pub fn alphabetic(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_alphabetic)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Alphabetic)),
-        })
+        .map_err(|err| err.but_expect(Character::Alphabetic))
 }
 
 pub fn alphanumeric(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_alphanumeric)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Alphanumeric)),
-        })
+        .map_err(|err| err.but_expect(Character::Alphanumeric))
 }
 
 pub fn lowercase(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_lowercase)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Lowercase)),
-        })
+        .map_err(|err| err.but_expect(Character::Lowercase))
 }
 
 pub fn uppercase(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_uppercase)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Uppercase)),
-        })
+        .map_err(|err| err.but_expect(Character::Uppercase))
 }
 
 pub fn indent(input: &str) -> Result<(char, &str), Error> {
     take(crate::util::is_ascii_indent)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Indent)),
-        })
+        .map_err(|err| err.but_expect(Character::Indent))
 }
 
 pub fn linebreak(input: &str) -> Result<(char, &str), Error> {
     take(crate::util::is_ascii_linebreak)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Linebreak)),
-        })
+        .map_err(|err| err.but_expect(Character::Linebreak))
 }
 
 pub fn whitespace(input: &str) -> Result<(char, &str), Error> {
     take(char::is_ascii_whitespace)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
-        .map_err(|err| match err {
-            Error::Expected(expected) => Error::expected(expected.expect(Character::Whitespace)),
-        })
+        .map_err(|err| err.but_expect(Character::Whitespace))
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -180,8 +158,14 @@ mod tests {
 
     #[test]
     fn test_character() {
-        assert_eq!(parse("", character('h')), Err(Error::expected(('h', ()))));
-        assert_eq!(parse("$", character('h')), Err(Error::expected(('h', '$'))));
+        assert_eq!(
+            parse("", character('h')),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("$", character('h')),
+            Err(Error::expect('h').but_found('$'))
+        );
         assert_eq!(parse("h", character('h')), Ok(('h', "")));
         assert_eq!(parse("hello", character('h')), Ok(('h', "ello")));
         assert_eq!(parse("hello", character(&'h')), Ok(('h', "ello")));
@@ -199,7 +183,10 @@ mod tests {
             assert_eq!(parse(&(ch.to_string() + "$"), any), Ok((ch, "$")));
         }
 
-        assert_eq!(parse("", any), Err(Error::expected((Character::Any, ()))));
+        assert_eq!(
+            parse("", any),
+            Err(Error::expect(Character::Any).but_found_end())
+        );
     }
 
     #[test]
@@ -222,7 +209,7 @@ mod tests {
 
         assert_eq!(
             parse("", Character::Any),
-            Err(Error::expected((Character::Any, ())))
+            Err(Error::expect(Character::Any).but_found_end())
         );
     }
 
@@ -236,13 +223,13 @@ mod tests {
         for ch in "$aZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), decimal),
-                Err(Error::expected((Character::Decimal, ch)))
+                Err(Error::expect(Character::Decimal).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", decimal),
-            Err(Error::expected((Character::Decimal, ())))
+            Err(Error::expect(Character::Decimal).but_found_end())
         );
     }
 
@@ -259,13 +246,13 @@ mod tests {
         for ch in "$aZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Decimal),
-                Err(Error::expected((Character::Decimal, ch)))
+                Err(Error::expect(Character::Decimal).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Decimal),
-            Err(Error::expected((Character::Decimal, ())))
+            Err(Error::expect(Character::Decimal).but_found_end())
         );
     }
 
@@ -279,13 +266,13 @@ mod tests {
         for ch in "$gZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), hexadecimal),
-                Err(Error::expected((Character::Hexadecimal, ch)))
+                Err(Error::expect(Character::Hexadecimal).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", hexadecimal),
-            Err(Error::expected((Character::Hexadecimal, ())))
+            Err(Error::expect(Character::Hexadecimal).but_found_end())
         );
     }
 
@@ -302,13 +289,13 @@ mod tests {
         for ch in "$gZ\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Hexadecimal),
-                Err(Error::expected((Character::Hexadecimal, ch)))
+                Err(Error::expect(Character::Hexadecimal).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Hexadecimal),
-            Err(Error::expected((Character::Hexadecimal, ())))
+            Err(Error::expect(Character::Hexadecimal).but_found_end())
         );
     }
 
@@ -322,13 +309,13 @@ mod tests {
         for ch in "$0 \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), alphabetic),
-                Err(Error::expected((Character::Alphabetic, ch)))
+                Err(Error::expect(Character::Alphabetic).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", alphabetic),
-            Err(Error::expected((Character::Alphabetic, ())))
+            Err(Error::expect(Character::Alphabetic).but_found_end())
         );
     }
 
@@ -345,13 +332,13 @@ mod tests {
         for ch in "$0 \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Alphabetic),
-                Err(Error::expected((Character::Alphabetic, ch)))
+                Err(Error::expect(Character::Alphabetic).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Alphabetic),
-            Err(Error::expected((Character::Alphabetic, ())))
+            Err(Error::expect(Character::Alphabetic).but_found_end())
         );
     }
 
@@ -365,13 +352,13 @@ mod tests {
         for ch in "$ \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), alphanumeric),
-                Err(Error::expected((Character::Alphanumeric, ch)))
+                Err(Error::expect(Character::Alphanumeric).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", alphanumeric),
-            Err(Error::expected((Character::Alphanumeric, ())))
+            Err(Error::expect(Character::Alphanumeric).but_found_end())
         );
     }
 
@@ -391,13 +378,13 @@ mod tests {
         for ch in "$ \n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Alphanumeric),
-                Err(Error::expected((Character::Alphanumeric, ch)))
+                Err(Error::expect(Character::Alphanumeric).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Alphanumeric),
-            Err(Error::expected((Character::Alphanumeric, ())))
+            Err(Error::expect(Character::Alphanumeric).but_found_end())
         );
     }
 
@@ -411,13 +398,13 @@ mod tests {
         for ch in "$ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars() {
             assert_eq!(
                 parse(&ch.to_string(), lowercase),
-                Err(Error::expected((Character::Lowercase, ch)))
+                Err(Error::expect(Character::Lowercase).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", lowercase),
-            Err(Error::expected((Character::Lowercase, ())))
+            Err(Error::expect(Character::Lowercase).but_found_end())
         );
     }
 
@@ -434,13 +421,13 @@ mod tests {
         for ch in "$ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Lowercase),
-                Err(Error::expected((Character::Lowercase, ch)))
+                Err(Error::expect(Character::Lowercase).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Lowercase),
-            Err(Error::expected((Character::Lowercase, ())))
+            Err(Error::expect(Character::Lowercase).but_found_end())
         );
     }
 
@@ -454,13 +441,13 @@ mod tests {
         for ch in "$abcdefghijklmnopqrstuvwxyz".chars() {
             assert_eq!(
                 parse(&ch.to_string(), uppercase),
-                Err(Error::expected((Character::Uppercase, ch)))
+                Err(Error::expect(Character::Uppercase).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", uppercase),
-            Err(Error::expected((Character::Uppercase, ())))
+            Err(Error::expect(Character::Uppercase).but_found_end())
         );
     }
 
@@ -477,13 +464,13 @@ mod tests {
         for ch in "$abcdefghijklmnopqrstuvwxyz".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Uppercase),
-                Err(Error::expected((Character::Uppercase, ch)))
+                Err(Error::expect(Character::Uppercase).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Uppercase),
-            Err(Error::expected((Character::Uppercase, ())))
+            Err(Error::expect(Character::Uppercase).but_found_end())
         );
     }
 
@@ -497,13 +484,13 @@ mod tests {
         for ch in "$\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), indent),
-                Err(Error::expected((Character::Indent, ch)))
+                Err(Error::expect(Character::Indent).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", indent),
-            Err(Error::expected((Character::Indent, ())))
+            Err(Error::expect(Character::Indent).but_found_end())
         );
     }
 
@@ -520,13 +507,13 @@ mod tests {
         for ch in "$\n".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Indent),
-                Err(Error::expected((Character::Indent, ch)))
+                Err(Error::expect(Character::Indent).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Indent),
-            Err(Error::expected((Character::Indent, ())))
+            Err(Error::expect(Character::Indent).but_found_end())
         );
     }
 
@@ -540,13 +527,13 @@ mod tests {
         for ch in "$ \t".chars() {
             assert_eq!(
                 parse(&ch.to_string(), linebreak),
-                Err(Error::expected((Character::Linebreak, ch)))
+                Err(Error::expect(Character::Linebreak).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", linebreak),
-            Err(Error::expected((Character::Linebreak, ())))
+            Err(Error::expect(Character::Linebreak).but_found_end())
         );
     }
 
@@ -563,13 +550,13 @@ mod tests {
         for ch in "$ \t".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Linebreak),
-                Err(Error::expected((Character::Linebreak, ch)))
+                Err(Error::expect(Character::Linebreak).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Linebreak),
-            Err(Error::expected((Character::Linebreak, ())))
+            Err(Error::expect(Character::Linebreak).but_found_end())
         );
     }
 
@@ -583,13 +570,13 @@ mod tests {
         for ch in "$a".chars() {
             assert_eq!(
                 parse(&ch.to_string(), whitespace),
-                Err(Error::expected((Character::Whitespace, ch)))
+                Err(Error::expect(Character::Whitespace).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", whitespace),
-            Err(Error::expected((Character::Whitespace, ())))
+            Err(Error::expect(Character::Whitespace).but_found_end())
         );
     }
 
@@ -606,13 +593,13 @@ mod tests {
         for ch in "$a".chars() {
             assert_eq!(
                 parse(&ch.to_string(), Character::Whitespace),
-                Err(Error::expected((Character::Whitespace, ch)))
+                Err(Error::expect(Character::Whitespace).but_found(ch))
             );
         }
 
         assert_eq!(
             parse("", Character::Whitespace),
-            Err(Error::expected((Character::Whitespace, ())))
+            Err(Error::expect(Character::Whitespace).but_found_end())
         );
     }
 
@@ -620,11 +607,11 @@ mod tests {
     fn test_custom_variant() {
         assert_eq!(
             parse("", Character::custom('h')),
-            Err(Error::expected(('h', ())))
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
             parse("$", Character::custom('h')),
-            Err(Error::expected(('h', '$',)))
+            Err(Error::expect('h').but_found('$'))
         );
         assert_eq!(parse("h", Character::custom('h')), Ok(('h', "")));
         assert_eq!(parse("hello", Character::custom('h')), Ok(('h', "ello")));

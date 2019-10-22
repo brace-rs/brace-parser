@@ -5,16 +5,46 @@ use crate::character::Character;
 use crate::sequence::Sequence;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Error {
-    Expected(Expected),
-}
+pub struct Error(Option<Expect>, Option<Expect>);
 
 impl Error {
-    pub fn expected<T>(expected: T) -> Self
+    pub fn expect<T>(expect: T) -> Self
     where
-        T: Into<Expected>,
+        T: Into<Expect>,
     {
-        Self::Expected(expected.into())
+        Self(Some(expect.into()), None)
+    }
+
+    pub fn found<T>(found: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        Self(None, Some(found.into()))
+    }
+
+    pub fn found_end() -> Self {
+        Self(None, Some(Expect::End))
+    }
+
+    pub fn but_expect<T>(mut self, expect: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        self.0 = Some(expect.into());
+        self
+    }
+
+    pub fn but_found<T>(mut self, found: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        self.1 = Some(found.into());
+        self
+    }
+
+    pub fn but_found_end(mut self) -> Self {
+        self.1 = Some(Expect::End);
+        self
     }
 }
 
@@ -22,100 +52,17 @@ impl error::Error for Error {}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Expected(expect) => write!(f, "Error: {}", expect),
+        write!(f, "Error:")?;
+
+        if let Some(expect) = &self.0 {
+            write!(f, "\nExpected {}", expect)?;
         }
-    }
-}
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Expected(Expect, Option<Expect>);
-
-impl Expected {
-    pub fn new<T, U>(expect: T, found: U) -> Self
-    where
-        T: Into<Expect>,
-        U: Into<Expect>,
-    {
-        Self(expect.into(), Some(found.into()))
-    }
-
-    pub fn expected<T>(expect: T) -> Self
-    where
-        T: Into<Expect>,
-    {
-        Self(expect.into(), None)
-    }
-
-    pub fn expect<T>(mut self, expect: T) -> Self
-    where
-        T: Into<Expect>,
-    {
-        self.0 = expect.into();
-        self
-    }
-
-    pub fn found<T>(mut self, found: T) -> Self
-    where
-        T: Into<Expect>,
-    {
-        self.1 = Some(found.into());
-        self
-    }
-}
-
-impl fmt::Display for Expected {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.1 {
-            Some(found) => write!(f, "Expected {}; Found {}", self.0, found),
-            None => write!(f, "Expected {}", self.0),
+        if let Some(found) = &self.1 {
+            write!(f, "\nFound {}", found)?;
         }
-    }
-}
 
-impl From<()> for Expected {
-    fn from(_: ()) -> Self {
-        Self(Expect::End, None)
-    }
-}
-
-impl From<char> for Expected {
-    fn from(from: char) -> Self {
-        Self(from.into(), None)
-    }
-}
-
-impl From<Character> for Expected {
-    fn from(from: Character) -> Self {
-        Self(from.into(), None)
-    }
-}
-
-impl From<&str> for Expected {
-    fn from(from: &str) -> Self {
-        Self(from.into(), None)
-    }
-}
-
-impl From<String> for Expected {
-    fn from(from: String) -> Self {
-        Self(from.into(), None)
-    }
-}
-
-impl From<Sequence> for Expected {
-    fn from(from: Sequence) -> Self {
-        Self(from.into(), None)
-    }
-}
-
-impl<T, U> From<(T, U)> for Expected
-where
-    T: Into<Expect>,
-    U: Into<Expect>,
-{
-    fn from(from: (T, U)) -> Self {
-        Self(from.0.into(), Some(from.1.into()))
+        Ok(())
     }
 }
 
@@ -124,7 +71,6 @@ pub enum Expect {
     End,
     Character(Character),
     Sequence(Sequence),
-    Match,
 }
 
 impl fmt::Display for Expect {
@@ -133,7 +79,6 @@ impl fmt::Display for Expect {
             Self::End => write!(f, "end of input"),
             Self::Character(ch) => write!(f, "character: {}", ch),
             Self::Sequence(seq) => write!(f, "sequence: {}", seq),
-            Self::Match => write!(f, "match"),
         }
     }
 }

@@ -69,21 +69,21 @@ mod tests {
     fn test_either() {
         assert_eq!(
             parse("", either("one", "two")),
-            Err(Error::expected(('t', ())))
+            Err(Error::expect('t').but_found_end())
         );
         assert_eq!(
             parse("$", either("one", "two")),
-            Err(Error::expected(('t', '$')))
+            Err(Error::expect('t').but_found('$'))
         );
         assert_eq!(parse("one", either("one", "two")), Ok(("one", "")));
         assert_eq!(parse("two", either("one", "two")), Ok(("two", "")));
         assert_eq!(
             parse("three", either("one", "two")),
-            Err(Error::expected(('w', 'h')))
+            Err(Error::expect('w').but_found('h'))
         );
         assert_eq!(
             parse("three", either("two", "one")),
-            Err(Error::expected(('o', 't')))
+            Err(Error::expect('o').but_found('t'))
         );
         assert_eq!(parse("onetwo", either("one", "two")), Ok(("one", "two")));
     }
@@ -92,11 +92,11 @@ mod tests {
     fn test_pair() {
         assert_eq!(
             parse("", pair("hello", " world")),
-            Err(Error::expected(('h', ())))
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
             parse("hello", pair("hello", " world")),
-            Err(Error::expected((' ', ())))
+            Err(Error::expect(' ').but_found_end())
         );
         assert_eq!(
             parse("hello world", pair("hello", " world")),
@@ -104,11 +104,11 @@ mod tests {
         );
         assert_eq!(
             parse("hello universe", pair("hello", " world")),
-            Err(Error::expected(('w', 'u')))
+            Err(Error::expect('w').but_found('u'))
         );
         assert_eq!(
             parse("goodbye world", pair("hello", " world")),
-            Err(Error::expected(('h', 'g')))
+            Err(Error::expect('h').but_found('g'))
         );
         assert_eq!(
             parse(
@@ -130,11 +130,11 @@ mod tests {
     fn test_trio() {
         assert_eq!(
             parse("", trio("hello", ' ', "world")),
-            Err(Error::expected(('h', ())))
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
             parse("hello", trio("hello", ' ', "world")),
-            Err(Error::expected((' ', ())))
+            Err(Error::expect(' ').but_found_end())
         );
         assert_eq!(
             parse("hello world", trio("hello", ' ', "world")),
@@ -142,11 +142,11 @@ mod tests {
         );
         assert_eq!(
             parse("hello universe", trio("hello", ' ', "world")),
-            Err(Error::expected(('w', 'u')))
+            Err(Error::expect('w').but_found('u'))
         );
         assert_eq!(
             parse("goodbye world", trio("hello", ' ', "world")),
-            Err(Error::expected(('h', 'g')))
+            Err(Error::expect('h').but_found('g'))
         );
         assert_eq!(
             parse("hello \n world", trio("hello", whitespace, alphabetic)),
@@ -162,15 +162,15 @@ mod tests {
     fn test_leading() {
         assert_eq!(
             parse("", leading("hello world", "!")),
-            Err(Error::expected(('h', ())))
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
             parse("hello", leading("hello world", "!")),
-            Err(Error::expected((' ', ())))
+            Err(Error::expect(' ').but_found_end())
         );
         assert_eq!(
             parse("hello world", leading("hello world", "!")),
-            Err(Error::expected(('!', ())))
+            Err(Error::expect('!').but_found_end())
         );
         assert_eq!(
             parse("hello world!", leading("hello world", "!")),
@@ -182,11 +182,11 @@ mod tests {
         );
         assert_eq!(
             parse("hello world?", leading("hello world", "!")),
-            Err(Error::expected(('!', '?')))
+            Err(Error::expect('!').but_found('?'))
         );
         assert_eq!(
             parse("hello universe!", leading("hello world", "!")),
-            Err(Error::expected(('w', 'u')))
+            Err(Error::expect('w').but_found('u'))
         );
     }
 
@@ -194,15 +194,15 @@ mod tests {
     fn test_trailing() {
         assert_eq!(
             parse("", trailing("hello world", "!")),
-            Err(Error::expected(('h', ())))
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
             parse("hello", trailing("hello world", "!")),
-            Err(Error::expected((' ', ())))
+            Err(Error::expect(' ').but_found_end())
         );
         assert_eq!(
             parse("hello world", trailing("hello world", "!")),
-            Err(Error::expected(('!', ())))
+            Err(Error::expect('!').but_found_end())
         );
         assert_eq!(
             parse("hello world!", trailing("hello world", "!")),
@@ -214,11 +214,11 @@ mod tests {
         );
         assert_eq!(
             parse("hello world?", trailing("hello world", "!")),
-            Err(Error::expected(('!', '?')))
+            Err(Error::expect('!').but_found('?'))
         );
         assert_eq!(
             parse("hello universe!", trailing("hello world", "!")),
-            Err(Error::expected(('w', 'u')))
+            Err(Error::expect('w').but_found('u'))
         );
     }
 }
