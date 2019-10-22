@@ -31,6 +31,12 @@ impl<'a, 'b> Parser<'a, &'a str> for &'b str {
     }
 }
 
+impl<'a> Parser<'a, &'a str> for String {
+    fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
+        self::sequence::sequence(self).parse(input)
+    }
+}
+
 pub fn parse<'a, P, O>(input: &'a str, parser: P) -> Result<(O, &'a str), Error>
 where
     P: Parser<'a, O>,
@@ -128,6 +134,26 @@ mod tests {
         assert_eq!(parse("help", "hello"), Err(Error::unexpected('p')));
         assert_eq!(parse("hello", "hello"), Ok(("hello", "")));
         assert_eq!(parse("hello world", "hello"), Ok(("hello", " world")));
+    }
+
+    #[test]
+    fn test_parser_string() {
+        assert_eq!(parse("", "h".to_owned()), Err(Error::incomplete()));
+        assert_eq!(parse("$", "h".to_owned()), Err(Error::unexpected('$')));
+        assert_eq!(parse("h", "h".to_owned()), Ok(("h", "")));
+        assert_eq!(parse("hello", "h".to_owned()), Ok(("h", "ello")));
+
+        assert_eq!(parse("", "hello".to_owned()), Err(Error::incomplete()));
+        assert_eq!(parse("h", "hello".to_owned()), Err(Error::incomplete()));
+        assert_eq!(
+            parse("help", "hello".to_owned()),
+            Err(Error::unexpected('p'))
+        );
+        assert_eq!(parse("hello", "hello".to_owned()), Ok(("hello", "")));
+        assert_eq!(
+            parse("hello world", "hello".to_owned()),
+            Ok(("hello", " world"))
+        );
     }
 
     #[test]
