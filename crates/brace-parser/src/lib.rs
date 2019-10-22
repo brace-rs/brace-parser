@@ -25,10 +25,7 @@ impl<'a> Parser<'a, char> for char {
     }
 }
 
-impl<'a, 'b> Parser<'a, &'b str> for &'b str
-where
-    'a: 'b,
-{
+impl<'a, 'b> Parser<'a, &'a str> for &'b str {
     fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
         self::sequence::sequence(self).parse(input)
     }
