@@ -77,6 +77,7 @@ pub enum Sequence {
     Indent,
     Linebreak,
     Whitespace,
+    Custom(String),
 }
 
 impl<'a> Parser<'a, &'a str> for Sequence {
@@ -92,6 +93,7 @@ impl<'a> Parser<'a, &'a str> for Sequence {
             Self::Indent => indent.parse(input),
             Self::Linebreak => linebreak.parse(input),
             Self::Whitespace => whitespace.parse(input),
+            Self::Custom(string) => string.parse(input),
         }
     }
 }
@@ -715,6 +717,34 @@ mod tests {
         assert_eq!(
             parse(" \t\n\r\u{000C}$", Sequence::Whitespace),
             Ok((" \t\n\r\u{000C}", "$"))
+        );
+    }
+
+    #[test]
+    fn test_custom_variant() {
+        assert_eq!(
+            parse("", Sequence::Custom("hello".to_owned())),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("h", Sequence::Custom("hello".to_owned())),
+            Err(Error::incomplete())
+        );
+        assert_eq!(
+            parse("help", Sequence::Custom("hello".to_owned())),
+            Err(Error::unexpected('p'))
+        );
+        assert_eq!(
+            parse("hello", Sequence::Custom("hello".to_owned())),
+            Ok(("hello", ""))
+        );
+        assert_eq!(
+            parse("hello$", Sequence::Custom("hello".to_owned())),
+            Ok(("hello", "$"))
+        );
+        assert_eq!(
+            parse("hello", Sequence::Custom("".to_owned())),
+            Ok(("", "hello"))
         );
     }
 }
