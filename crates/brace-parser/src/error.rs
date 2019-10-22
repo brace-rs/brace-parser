@@ -6,18 +6,19 @@ use crate::sequence::Sequence;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    Incomplete,
-    Unexpected(char),
     Expected(Expected),
 }
 
 impl Error {
     pub fn incomplete() -> Self {
-        Self::Incomplete
+        Self::Expected(Expected::expect(Expect::Match).found(()))
     }
 
-    pub fn unexpected(ch: char) -> Self {
-        Self::Unexpected(ch)
+    pub fn unexpected<T>(unexpected: T) -> Self
+    where
+        T: Into<Expect>,
+    {
+        Self::Expected(Expected::expect(Expect::Match).found(unexpected))
     }
 
     pub fn expected<T>(expected: T) -> Self
@@ -33,8 +34,6 @@ impl error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Incomplete => write!(f, "Error: Unexpected end of input"),
-            Self::Unexpected(ch) => write!(f, "Error: Unexpected character: '{}'", ch),
             Self::Expected(expect) => write!(f, "Error: {}", expect),
         }
     }
@@ -77,6 +76,12 @@ impl fmt::Display for Expected {
     }
 }
 
+impl From<()> for Expected {
+    fn from(_: ()) -> Self {
+        Self(Expect::End, None)
+    }
+}
+
 impl From<char> for Expected {
     fn from(from: char) -> Self {
         Self(from.into(), None)
@@ -109,16 +114,26 @@ impl From<Sequence> for Expected {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expect {
+    End,
     Character(Character),
     Sequence(Sequence),
+    Match,
 }
 
 impl fmt::Display for Expect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::End => write!(f, "end of input"),
             Self::Character(ch) => write!(f, "character: {}", ch),
             Self::Sequence(seq) => write!(f, "sequence: {}", seq),
+            Self::Match => write!(f, "match"),
         }
+    }
+}
+
+impl From<()> for Expect {
+    fn from(_: ()) -> Self {
+        Self::End
     }
 }
 
