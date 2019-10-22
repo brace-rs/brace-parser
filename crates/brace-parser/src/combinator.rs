@@ -48,6 +48,14 @@ pub fn trailing<'a, O, T>(
     }
 }
 
+pub fn delimited<'a, A, B, C>(
+    a: impl Parser<'a, A>,
+    b: impl Parser<'a, B>,
+    c: impl Parser<'a, C>,
+) -> impl Parser<'a, B> {
+    leading(a, trailing(b, c))
+}
+
 pub fn map<'a, M, A, B>(parser: impl Parser<'a, A>, map: M) -> impl Parser<'a, B>
 where
     M: Fn(A) -> B,
@@ -226,6 +234,30 @@ mod tests {
         assert_eq!(
             parse("hello universe!", trailing("hello world", "!")),
             Err(Error::expect('w').but_found('u'))
+        );
+    }
+
+    #[test]
+    fn test_delimited() {
+        assert_eq!(
+            parse("(hello)", delimited('(', "hello", ')')),
+            Ok(("hello", ""))
+        );
+        assert_eq!(
+            parse("\"hello\"", delimited('"', "hello", '"')),
+            Ok(("hello", ""))
+        );
+        assert_eq!(
+            parse("\"hello\" world", delimited('"', "hello", '"')),
+            Ok(("hello", " world"))
+        );
+        assert_eq!(
+            parse("\"hello", delimited('"', "hello", '"')),
+            Err(Error::expect('"').but_found_end())
+        );
+        assert_eq!(
+            parse("hello", delimited('"', "hello", '"')),
+            Err(Error::expect('"').but_found('h'))
         );
     }
 
