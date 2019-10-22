@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt;
 
 use crate::{take, Error, Parser};
 
@@ -111,6 +112,24 @@ impl<'a> Parser<'a, char> for Character {
             Self::Linebreak => linebreak.parse(input),
             Self::Whitespace => whitespace.parse(input),
             Self::Custom(ch) => ch.parse(input),
+        }
+    }
+}
+
+impl fmt::Display for Character {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Any => write!(f, "any"),
+            Self::Decimal => write!(f, "decimal"),
+            Self::Hexadecimal => write!(f, "hexadecimal"),
+            Self::Alphabetic => write!(f, "alphabetic"),
+            Self::Alphanumeric => write!(f, "alphanumeric"),
+            Self::Lowercase => write!(f, "lowercase"),
+            Self::Uppercase => write!(f, "uppercase"),
+            Self::Indent => write!(f, "indent"),
+            Self::Linebreak => write!(f, "linebreak"),
+            Self::Whitespace => write!(f, "whitespace"),
+            Self::Custom(ch) => write!(f, "'{}'", ch),
         }
     }
 }

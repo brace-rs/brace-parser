@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{take_while, Error, Parser};
 
 pub fn sequence<'a, T>(sequence: T) -> impl Parser<'a, &'a str>
@@ -103,6 +105,24 @@ impl<'a> Parser<'a, &'a str> for Sequence {
             Self::Linebreak => linebreak.parse(input),
             Self::Whitespace => whitespace.parse(input),
             Self::Custom(string) => string.parse(input),
+        }
+    }
+}
+
+impl fmt::Display for Sequence {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Any => write!(f, "any"),
+            Self::Decimal => write!(f, "decimal"),
+            Self::Hexadecimal => write!(f, "hexadecimal"),
+            Self::Alphabetic => write!(f, "alphabetic"),
+            Self::Alphanumeric => write!(f, "alphanumeric"),
+            Self::Lowercase => write!(f, "lowercase"),
+            Self::Uppercase => write!(f, "uppercase"),
+            Self::Indent => write!(f, "indent"),
+            Self::Linebreak => write!(f, "linebreak"),
+            Self::Whitespace => write!(f, "whitespace"),
+            Self::Custom(string) => write!(f, "\"{}\"", string),
         }
     }
 }
