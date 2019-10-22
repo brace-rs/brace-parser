@@ -25,6 +25,10 @@ where
     }
 }
 
+pub fn any(input: &str) -> Result<(&str, &str), Error> {
+    take_while(|_| true).parse(input)
+}
+
 pub fn decimal(input: &str) -> Result<(&str, &str), Error> {
     take_while(char::is_ascii_digit).parse(input)
 }
@@ -63,6 +67,7 @@ pub fn whitespace(input: &str) -> Result<(&str, &str), Error> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Sequence {
+    Any,
     Decimal,
     Hexadecimal,
     Alphabetic,
@@ -77,6 +82,7 @@ pub enum Sequence {
 impl<'a> Parser<'a, &'a str> for Sequence {
     fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
         match self {
+            Self::Any => any.parse(input),
             Self::Decimal => decimal.parse(input),
             Self::Hexadecimal => hexadecimal.parse(input),
             Self::Alphabetic => alphabetic.parse(input),
@@ -106,6 +112,50 @@ mod tests {
         assert_eq!(parse("hello", sequence("hello")), Ok(("hello", "")));
         assert_eq!(parse("hello$", sequence("hello")), Ok(("hello", "$")));
         assert_eq!(parse("hello", sequence("")), Ok(("", "hello")));
+    }
+
+    #[test]
+    fn test_any() {
+        for ch in "$0123456789 \t\n\r\u{000C}".chars() {
+            assert_eq!(parse(&ch.to_string(), any), Ok((&*ch.to_string(), "")));
+            assert_eq!(
+                parse(&(ch.to_string() + "$"), any),
+                Ok((&*(ch.to_string() + "$"), ""))
+            );
+        }
+
+        for ch in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".chars() {
+            assert_eq!(parse(&ch.to_string(), any), Ok((&*ch.to_string(), "")));
+            assert_eq!(
+                parse(&(ch.to_string() + "$"), any),
+                Ok((&*(ch.to_string() + "$"), ""))
+            );
+        }
+    }
+
+    #[test]
+    fn test_any_variant() {
+        for ch in "$0123456789 \t\n\r\u{000C}".chars() {
+            assert_eq!(
+                parse(&ch.to_string(), Sequence::Any),
+                Ok((&*ch.to_string(), ""))
+            );
+            assert_eq!(
+                parse(&(ch.to_string() + "$"), Sequence::Any),
+                Ok((&*(ch.to_string() + "$"), ""))
+            );
+        }
+
+        for ch in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".chars() {
+            assert_eq!(
+                parse(&ch.to_string(), Sequence::Any),
+                Ok((&*ch.to_string(), ""))
+            );
+            assert_eq!(
+                parse(&(ch.to_string() + "$"), Sequence::Any),
+                Ok((&*(ch.to_string() + "$"), ""))
+            );
+        }
     }
 
     #[test]
