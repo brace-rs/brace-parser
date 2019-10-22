@@ -85,6 +85,16 @@ pub enum Character {
     Indent,
     Linebreak,
     Whitespace,
+    Custom(char),
+}
+
+impl Character {
+    pub fn custom<T>(character: T) -> Self
+    where
+        T: Into<char>,
+    {
+        Self::Custom(character.into())
+    }
 }
 
 impl<'a> Parser<'a, char> for Character {
@@ -100,7 +110,14 @@ impl<'a> Parser<'a, char> for Character {
             Self::Indent => indent.parse(input),
             Self::Linebreak => linebreak.parse(input),
             Self::Whitespace => whitespace.parse(input),
+            Self::Custom(ch) => ch.parse(input),
         }
+    }
+}
+
+impl From<char> for Character {
+    fn from(from: char) -> Self {
+        Self::Custom(from)
     }
 }
 
@@ -482,5 +499,17 @@ mod tests {
         }
 
         assert_eq!(parse("", Character::Whitespace), Err(Error::incomplete()));
+    }
+
+    #[test]
+    fn test_custom_variant() {
+        assert_eq!(parse("", Character::custom('h')), Err(Error::incomplete()));
+        assert_eq!(
+            parse("$", Character::custom('h')),
+            Err(Error::unexpected('$'))
+        );
+        assert_eq!(parse("h", Character::custom('h')), Ok(('h', "")));
+        assert_eq!(parse("hello", Character::custom('h')), Ok(('h', "ello")));
+        assert_eq!(parse("hello", Character::custom('h')), Ok(('h', "ello")));
     }
 }
