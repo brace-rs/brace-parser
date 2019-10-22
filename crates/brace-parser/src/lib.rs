@@ -29,7 +29,7 @@ impl<'a, 'b> Parser<'a, &'b str> for &'b str
 where
     'a: 'b,
 {
-    fn parse(&self, input: &'a str) -> Result<(&'b str, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
         self::sequence::sequence(self).parse(input)
     }
 }
