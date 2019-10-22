@@ -88,6 +88,15 @@ pub enum Character {
     Custom(char),
 }
 
+impl Character {
+    pub fn custom<T>(character: T) -> Self
+    where
+        T: Into<char>,
+    {
+        Self::Custom(character.into())
+    }
+}
+
 impl<'a> Parser<'a, char> for Character {
     fn parse(&self, input: &'a str) -> Result<(char, &'a str), Error> {
         match self {
@@ -494,13 +503,13 @@ mod tests {
 
     #[test]
     fn test_custom_variant() {
-        assert_eq!(parse("", Character::Custom('h')), Err(Error::incomplete()));
+        assert_eq!(parse("", Character::custom('h')), Err(Error::incomplete()));
         assert_eq!(
-            parse("$", Character::Custom('h')),
+            parse("$", Character::custom('h')),
             Err(Error::unexpected('$'))
         );
-        assert_eq!(parse("h", Character::Custom('h')), Ok(('h', "")));
-        assert_eq!(parse("hello", Character::Custom('h')), Ok(('h', "ello")));
-        assert_eq!(parse("hello", Character::Custom('h')), Ok(('h', "ello")));
+        assert_eq!(parse("h", Character::custom('h')), Ok(('h', "")));
+        assert_eq!(parse("hello", Character::custom('h')), Ok(('h', "ello")));
+        assert_eq!(parse("hello", Character::custom('h')), Ok(('h', "ello")));
     }
 }

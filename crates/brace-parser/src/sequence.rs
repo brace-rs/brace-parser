@@ -80,6 +80,15 @@ pub enum Sequence {
     Custom(String),
 }
 
+impl Sequence {
+    pub fn custom<T>(sequence: T) -> Self
+    where
+        T: Into<String>,
+    {
+        Self::Custom(sequence.into())
+    }
+}
+
 impl<'a> Parser<'a, &'a str> for Sequence {
     fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
         match self {
@@ -735,28 +744,22 @@ mod tests {
     #[test]
     fn test_custom_variant() {
         assert_eq!(
-            parse("", Sequence::Custom("hello".to_owned())),
+            parse("", Sequence::custom("hello")),
             Err(Error::incomplete())
         );
         assert_eq!(
-            parse("h", Sequence::Custom("hello".to_owned())),
+            parse("h", Sequence::custom("hello")),
             Err(Error::incomplete())
         );
         assert_eq!(
-            parse("help", Sequence::Custom("hello".to_owned())),
+            parse("help", Sequence::custom("hello")),
             Err(Error::unexpected('p'))
         );
+        assert_eq!(parse("hello", Sequence::custom("hello")), Ok(("hello", "")));
         assert_eq!(
-            parse("hello", Sequence::Custom("hello".to_owned())),
-            Ok(("hello", ""))
-        );
-        assert_eq!(
-            parse("hello$", Sequence::Custom("hello".to_owned())),
+            parse("hello$", Sequence::custom("hello")),
             Ok(("hello", "$"))
         );
-        assert_eq!(
-            parse("hello", Sequence::Custom("".to_owned())),
-            Ok(("", "hello"))
-        );
+        assert_eq!(parse("hello", Sequence::custom("")), Ok(("", "hello")));
     }
 }
