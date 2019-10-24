@@ -19,6 +19,12 @@ where
     }
 }
 
+impl<'a> Parser<'a, ()> for () {
+    fn parse(&self, input: &'a str) -> Result<((), &'a str), Error> {
+        Ok(((), input))
+    }
+}
+
 impl<'a> Parser<'a, char> for char {
     fn parse(&self, input: &'a str) -> Result<(char, &'a str), Error> {
         self::character::character(self).parse(input)
@@ -109,6 +115,12 @@ mod tests {
         assert_eq!(parse("a", Custom), Err(Error::found('a')));
         assert_eq!(parse("$", Custom), Ok(("$", "")));
         assert_eq!(parse("$$", Custom), Ok(("$", "$")));
+    }
+
+    #[test]
+    fn test_parser_unit() {
+        assert_eq!(parse("", ()), Ok(((), "")));
+        assert_eq!(parse("hello", ()), Ok(((), "hello")));
     }
 
     #[test]

@@ -91,6 +91,12 @@ pub trait Series<'a, O> {
     fn parse_series(&self, input: &'a str) -> Result<(O, &'a str), Error>;
 }
 
+impl<'a> Series<'a, ()> for () {
+    fn parse_series(&self, input: &'a str) -> Result<((), &'a str), Error> {
+        Ok(((), input))
+    }
+}
+
 impl<'a, T, O> Series<'a, Vec<O>> for Vec<T>
 where
     T: Parser<'a, O>,
@@ -119,6 +125,12 @@ pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
 
 pub trait Branch<'a, O> {
     fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error>;
+}
+
+impl<'a> Branch<'a, ()> for () {
+    fn parse_branch(&self, input: &'a str) -> Result<((), &'a str), Error> {
+        Ok(((), input))
+    }
 }
 
 impl<'a, T, O> Branch<'a, O> for Vec<T>
@@ -402,6 +414,8 @@ mod tests {
             parse("hello universe!", series(vec!["hello", " ", "world"])),
             Err(Error::expect('w').but_found('u'))
         );
+        assert_eq!(parse("", series(())), Ok(((), "")));
+        assert_eq!(parse("hello", series(())), Ok(((), "hello")));
     }
 
     #[test]
@@ -425,5 +439,7 @@ mod tests {
             parse("d", branch(vec!["a", "b", "c"])),
             Err(Error::expect('c').but_found('d'))
         );
+        assert_eq!(parse("", branch(())), Ok(((), "")));
+        assert_eq!(parse("hello", branch(())), Ok(((), "hello")));
     }
 }
