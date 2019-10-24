@@ -19,6 +19,12 @@ where
     }
 }
 
+impl<'a> Parser<'a, ()> for () {
+    fn parse(&self, input: &'a str) -> Result<((), &'a str), Error> {
+        Ok(((), input))
+    }
+}
+
 impl<'a> Parser<'a, char> for char {
     fn parse(&self, input: &'a str) -> Result<(char, &'a str), Error> {
         self::character::character(self).parse(input)
