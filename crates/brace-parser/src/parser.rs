@@ -1,7 +1,9 @@
 use crate::combinator::series::Series;
 use crate::error::Error;
 
-pub fn parse<'a, P, O>(input: &'a str, parser: P) -> Result<(O, &'a str), Error>
+pub type Output<'a, O> = Result<(O, &'a str), Error>;
+
+pub fn parse<'a, P, O>(input: &'a str, parser: P) -> Output<'a, O>
 where
     P: Parser<'a, O>,
 {
@@ -56,38 +58,38 @@ where
 }
 
 pub trait Parser<'a, O> {
-    fn parse(&self, input: &'a str) -> Result<(O, &'a str), Error>;
+    fn parse(&self, input: &'a str) -> Output<'a, O>;
 }
 
 impl<'a, O, T> Parser<'a, O> for T
 where
-    T: Fn(&'a str) -> Result<(O, &'a str), Error>,
+    T: Fn(&'a str) -> Output<'a, O>,
 {
-    fn parse(&self, input: &'a str) -> Result<(O, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, O> {
         (self)(input)
     }
 }
 
 impl<'a> Parser<'a, ()> for () {
-    fn parse(&self, input: &'a str) -> Result<((), &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, ()> {
         Ok(((), input))
     }
 }
 
 impl<'a> Parser<'a, char> for char {
-    fn parse(&self, input: &'a str) -> Result<(char, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, char> {
         crate::character::character(self).parse(input)
     }
 }
 
 impl<'a, 'b> Parser<'a, &'a str> for &'b str {
-    fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
         crate::sequence::sequence(self).parse(input)
     }
 }
 
 impl<'a> Parser<'a, &'a str> for String {
-    fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
         crate::sequence::sequence(self).parse(input)
     }
 }
@@ -111,7 +113,7 @@ macro_rules! impl_parser {
         where
             $($T: Parser<'a, $O>,)+
         {
-            fn parse(&self, input: &'a str) -> Result<(($($O,)+), &'a str), Error> {
+            fn parse(&self, input: &'a str) -> Output<'a, ($($O,)+)> {
                 self.parse_series(input)
             }
         }
@@ -140,7 +142,7 @@ mod tests {
     struct Custom;
 
     impl<'a> Parser<'a, &'a str> for Custom {
-        fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
+        fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
             take(|ch| ch == &'$').parse(input)
         }
     }

@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::parser::Parser;
+use crate::parser::{Output, Parser};
 
 pub fn branch<'a, O>(branch: impl Branch<'a, O>) -> impl Parser<'a, O> {
     move |input| branch.parse_branch(input)
@@ -17,11 +17,11 @@ pub fn optional<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Option<O>>
 }
 
 pub trait Branch<'a, O> {
-    fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error>;
+    fn parse_branch(&self, input: &'a str) -> Output<'a, O>;
 }
 
 impl<'a> Branch<'a, ()> for () {
-    fn parse_branch(&self, input: &'a str) -> Result<((), &'a str), Error> {
+    fn parse_branch(&self, input: &'a str) -> Output<'a, ()> {
         Ok(((), input))
     }
 }
@@ -30,7 +30,7 @@ impl<'a, T, O> Branch<'a, O> for Vec<T>
 where
     T: Parser<'a, O>,
 {
-    fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error> {
+    fn parse_branch(&self, input: &'a str) -> Output<'a, O> {
         let mut out = Err(Error::invalid());
 
         for parser in self {
@@ -64,7 +64,7 @@ macro_rules! impl_branch {
         where
             $($T: Parser<'a, O>,)+
         {
-            fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error> {
+            fn parse_branch(&self, input: &'a str) -> Output<'a, O> {
                 impl_branch!(@start self; input; $($idx,)+)
             }
         }
