@@ -1,3 +1,4 @@
+use crate::combinator::series::Series;
 use crate::error::Error;
 
 pub fn parse<'a, P, O>(input: &'a str, parser: P) -> Result<(O, &'a str), Error>
@@ -91,6 +92,47 @@ impl<'a> Parser<'a, &'a str> for String {
     }
 }
 
+macro_rules! impl_parser {
+    ($(($a:tt, $b:ident, $c:ident),)+) => {
+        impl_parser!(@iter $(($a, $b, $c),)+;);
+    };
+
+    (@iter ($a:tt, $b:ident, $c:ident),; $(($d:tt, $e:ident, $f:ident),)*) => {
+        impl_parser!(@impl $(($d, $e, $f),)* ($a, $b, $c),);
+    };
+
+    (@iter ($a:tt, $b:ident, $c:ident), $(($d:tt, $e:ident, $f:ident),)+; $(($g:tt, $h:ident, $i:ident),)*) => {
+        impl_parser!(@impl $(($g, $h, $i),)* ($a, $b, $c),);
+        impl_parser!(@iter $(($d, $e, $f),)*; $(($g, $h, $i),)* ($a, $b, $c),);
+    };
+
+    (@impl $(($idx:tt, $T:ident, $O:ident),)+) => {
+        impl<'a, $($T, $O,)+> Parser<'a, ($($O,)+)> for ($($T,)+)
+        where
+            $($T: Parser<'a, $O>,)+
+        {
+            fn parse(&self, input: &'a str) -> Result<(($($O,)+), &'a str), Error> {
+                self.parse_series(input)
+            }
+        }
+    };
+}
+
+impl_parser! {
+    (0, A, N),
+    (1, B, O),
+    (2, C, P),
+    (3, D, Q),
+    (4, E, R),
+    (5, F, S),
+    (6, G, T),
+    (7, H, U),
+    (8, I, V),
+    (9, J, W),
+    (10, K, X),
+    (11, L, Y),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,6 +211,94 @@ mod tests {
         assert_eq!(
             parse("hello world", "hello".to_owned()),
             Ok(("hello", " world"))
+        );
+    }
+
+    #[test]
+    fn test_parser_tuple() {
+        assert_eq!(
+            parse("", ("hello", ' ', "world")),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("hello", ("hello", ' ', "world")),
+            Err(Error::expect(' ').but_found_end())
+        );
+        assert_eq!(
+            parse("hello ", ("hello", ' ', "world")),
+            Err(Error::expect('w').but_found_end())
+        );
+        assert_eq!(
+            parse("hello world", ("hello", ' ', "world")),
+            Ok((("hello", ' ', "world"), ""))
+        );
+        assert_eq!(
+            parse("hello world!", ("hello", ' ', "world")),
+            Ok((("hello", ' ', "world"), "!"))
+        );
+        assert_eq!(
+            parse("hello universe!", ("hello", ' ', "world")),
+            Err(Error::expect('w').but_found('u'))
+        );
+        assert_eq!(parse("hello world!", ('h',)), Ok((('h',), "ello world!")));
+        assert_eq!(
+            parse("hello world!", ('h', 'e')),
+            Ok((('h', 'e'), "llo world!"))
+        );
+        assert_eq!(
+            parse("hello world!", ('h', 'e', 'l')),
+            Ok((('h', 'e', 'l'), "lo world!"))
+        );
+        assert_eq!(
+            parse("hello world!", ('h', 'e', 'l', 'l')),
+            Ok((('h', 'e', 'l', 'l'), "o world!"))
+        );
+        assert_eq!(
+            parse("hello world!", ('h', 'e', 'l', 'l', 'o')),
+            Ok((('h', 'e', 'l', 'l', 'o'), " world!"))
+        );
+        assert_eq!(
+            parse("hello world!", ('h', 'e', 'l', 'l', 'o', ' ')),
+            Ok((('h', 'e', 'l', 'l', 'o', ' '), "world!"))
+        );
+        assert_eq!(
+            parse("hello world!", ('h', 'e', 'l', 'l', 'o', ' ', 'w')),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w'), "orld!"))
+        );
+        assert_eq!(
+            parse("hello world!", ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o')),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o'), "rld!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r')
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r'), "ld!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l')
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l'), "d!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd')
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'), "!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!')
+            ),
+            Ok((
+                ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'),
+                ""
+            ))
         );
     }
 

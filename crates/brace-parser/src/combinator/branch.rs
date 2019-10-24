@@ -45,6 +45,62 @@ where
     }
 }
 
+macro_rules! impl_branch {
+    ($(($a:tt, $b:ident),)+) => {
+        impl_branch!(@iter $(($a, $b),)+;);
+    };
+
+    (@iter ($a:tt, $b:ident),; $(($c:tt, $d:ident),)*) => {
+        impl_branch!(@impl $(($c, $d),)* ($a, $b),);
+    };
+
+    (@iter ($a:tt, $b:ident), $(($c:tt, $d:ident),)+; $(($e:tt, $f:ident),)*) => {
+        impl_branch!(@impl $(($e, $f),)* ($a, $b),);
+        impl_branch!(@iter $(($c, $d),)*; $(($e, $f),)* ($a, $b),);
+    };
+
+    (@impl $(($idx:tt, $T:ident),)+) => {
+        impl<'a, O, $($T,)+> Branch<'a, O> for ($($T,)+)
+        where
+            $($T: Parser<'a, O>,)+
+        {
+            fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error> {
+                impl_branch!(@start self; input; $($idx,)+)
+            }
+        }
+    };
+
+    (@start $self:expr; $input:expr; $($idx:tt,)+) => {
+        impl_branch!(@inner $self; $input; $($idx,)+);
+    };
+
+    (@inner $self:expr; $input:expr; $i:tt,) => {
+        $self.$i.parse($input)
+    };
+
+    (@inner $self:expr; $input:expr; $i:tt, $($idx:tt,)+) => {
+        match $self.$i.parse($input) {
+            Ok(res) => Ok(res),
+            Err(_) => impl_branch!(@inner $self; $input; $($idx,)+),
+        }
+    };
+}
+
+impl_branch! {
+    (0, A),
+    (1, B),
+    (2, C),
+    (3, D),
+    (4, E),
+    (5, F),
+    (6, G),
+    (7, H),
+    (8, I),
+    (9, J),
+    (10, K),
+    (11, L),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,6 +130,20 @@ mod tests {
         );
         assert_eq!(parse("", branch(())), Ok(((), "")));
         assert_eq!(parse("hello", branch(())), Ok(((), "hello")));
+        assert_eq!(
+            parse("", branch(("a", "b", "c"))),
+            Err(Error::expect('c').but_found_end())
+        );
+        assert_eq!(parse("a", branch(("a", "b", "c"))), Ok(("a", "")));
+        assert_eq!(parse("b", branch(("a", "b", "c"))), Ok(("b", "")));
+        assert_eq!(parse("c", branch(("a", "b", "c"))), Ok(("c", "")));
+        assert_eq!(parse("a!", branch(("a", "b", "c"))), Ok(("a", "!")));
+        assert_eq!(parse("b!", branch(("a", "b", "c"))), Ok(("b", "!")));
+        assert_eq!(parse("c!", branch(("a", "b", "c"))), Ok(("c", "!")));
+        assert_eq!(
+            parse("d", branch(("a", "b", "c"))),
+            Err(Error::expect('c').but_found('d'))
+        );
     }
 
     #[test]
