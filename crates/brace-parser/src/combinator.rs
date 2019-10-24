@@ -1,4 +1,4 @@
-use crate::Parser;
+use crate::{Error, Parser};
 
 pub fn optional<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Option<O>> {
     move |input| match parser.parse(input) {
@@ -85,6 +85,36 @@ pub fn list<'a, T, S>(
             }
         })
     }
+}
+
+pub trait Series<'a, O> {
+    fn parse_series(&self, input: &'a str) -> Result<(O, &'a str), Error>;
+}
+
+impl<'a, T, O> Series<'a, Vec<O>> for Vec<T>
+where
+    T: Parser<'a, O>,
+{
+    fn parse_series(&self, input: &'a str) -> Result<(Vec<O>, &'a str), Error> {
+        let mut out = Vec::new();
+        let mut rem = input;
+
+        for parser in self {
+            match parser.parse(rem) {
+                Ok((item, next)) => {
+                    out.push(item);
+                    rem = next;
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        Ok((out, rem))
+    }
+}
+
+pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
+    move |input| series.parse_series(input)
 }
 
 #[cfg(test)]
@@ -316,6 +346,34 @@ mod tests {
         assert_eq!(
             parse("a,a,a,b", list('a', ',')),
             Ok((vec!['a', 'a', 'a'], ",b"))
+        );
+    }
+
+    #[test]
+    fn test_series() {
+        assert_eq!(
+            parse("", series(vec!["hello", " ", "world"])),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("hello", series(vec!["hello", " ", "world"])),
+            Err(Error::expect(' ').but_found_end())
+        );
+        assert_eq!(
+            parse("hello ", series(vec!["hello", " ", "world"])),
+            Err(Error::expect('w').but_found_end())
+        );
+        assert_eq!(
+            parse("hello world", series(vec!["hello", " ", "world"])),
+            Ok((vec!["hello", " ", "world"], ""))
+        );
+        assert_eq!(
+            parse("hello world!", series(vec!["hello", " ", "world"])),
+            Ok((vec!["hello", " ", "world"], "!"))
+        );
+        assert_eq!(
+            parse("hello universe!", series(vec!["hello", " ", "world"])),
+            Err(Error::expect('w').but_found('u'))
         );
     }
 }
