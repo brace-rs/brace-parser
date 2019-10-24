@@ -8,6 +8,10 @@ use crate::sequence::Sequence;
 pub struct Error(Option<Expect>, Option<Expect>);
 
 impl Error {
+    pub fn invalid() -> Self {
+        Self(Some(Expect::Valid), None)
+    }
+
     pub fn expect<T>(expect: T) -> Self
     where
         T: Into<Expect>,
@@ -69,6 +73,7 @@ impl fmt::Display for Error {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expect {
     End,
+    Valid,
     Character(Character),
     Sequence(Sequence),
 }
@@ -77,6 +82,7 @@ impl fmt::Display for Expect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::End => write!(f, "end of input"),
+            Self::Valid => write!(f, "valid parser"),
             Self::Character(ch) => write!(f, "character: {}", ch),
             Self::Sequence(seq) => write!(f, "sequence: {}", seq),
         }

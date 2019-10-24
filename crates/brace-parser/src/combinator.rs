@@ -117,6 +117,33 @@ pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
     move |input| series.parse_series(input)
 }
 
+pub trait Branch<'a, O> {
+    fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error>;
+}
+
+impl<'a, T, O> Branch<'a, O> for Vec<T>
+where
+    T: Parser<'a, O>,
+{
+    fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error> {
+        let mut out = Err(Error::invalid());
+
+        for parser in self {
+            out = parser.parse(input);
+
+            if out.is_ok() {
+                return out;
+            }
+        }
+
+        out
+    }
+}
+
+pub fn branch<'a, O>(branch: impl Branch<'a, O>) -> impl Parser<'a, O> {
+    move |input| branch.parse_branch(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,6 +401,29 @@ mod tests {
         assert_eq!(
             parse("hello universe!", series(vec!["hello", " ", "world"])),
             Err(Error::expect('w').but_found('u'))
+        );
+    }
+
+    #[test]
+    fn test_branch() {
+        assert_eq!(parse("", branch(Vec::<&str>::new())), Err(Error::invalid()));
+        assert_eq!(
+            parse("a", branch(Vec::<&str>::new())),
+            Err(Error::invalid())
+        );
+        assert_eq!(
+            parse("", branch(vec!["a", "b", "c"])),
+            Err(Error::expect('c').but_found_end())
+        );
+        assert_eq!(parse("a", branch(vec!["a", "b", "c"])), Ok(("a", "")));
+        assert_eq!(parse("b", branch(vec!["a", "b", "c"])), Ok(("b", "")));
+        assert_eq!(parse("c", branch(vec!["a", "b", "c"])), Ok(("c", "")));
+        assert_eq!(parse("a!", branch(vec!["a", "b", "c"])), Ok(("a", "!")));
+        assert_eq!(parse("b!", branch(vec!["a", "b", "c"])), Ok(("b", "!")));
+        assert_eq!(parse("c!", branch(vec!["a", "b", "c"])), Ok(("c", "!")));
+        assert_eq!(
+            parse("d", branch(vec!["a", "b", "c"])),
+            Err(Error::expect('c').but_found('d'))
         );
     }
 }
