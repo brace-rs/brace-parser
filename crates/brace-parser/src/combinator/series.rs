@@ -106,6 +106,65 @@ where
     }
 }
 
+macro_rules! impl_series {
+    ($(($a:tt, $b:ident, $c:ident),)+) => {
+        impl_series!(@iter $(($a, $b, $c),)+;);
+    };
+
+    (@iter ($a:tt, $b:ident, $c:ident),; $(($d:tt, $e:ident, $f:ident),)*) => {
+        impl_series!(@impl $(($d, $e, $f),)* ($a, $b, $c),);
+    };
+
+    (@iter ($a:tt, $b:ident, $c:ident), $(($d:tt, $e:ident, $f:ident),)+; $(($g:tt, $h:ident, $i:ident),)*) => {
+        impl_series!(@impl $(($g, $h, $i),)* ($a, $b, $c),);
+        impl_series!(@iter $(($d, $e, $f),)*; $(($g, $h, $i),)* ($a, $b, $c),);
+    };
+
+    (@impl $(($idx:tt, $T:ident, $O:ident),)+) => {
+        impl<'a, $($T, $O,)+> Series<'a, ($($O,)+)> for ($($T,)+)
+        where
+            $($T: Parser<'a, $O>,)+
+        {
+            fn parse_series(&self, input: &'a str) -> Result<(($($O,)+), &'a str), Error> {
+                impl_series!(@start self; input; $($idx,)+)
+            }
+        }
+    };
+
+    (@start $self:expr; $input:expr; $($idx:tt,)+) => {
+        impl_series!(@inner $self; $input; a, b, c, d, e, f, g, h, i, j, k, l,;; $($idx,)+);
+    };
+
+    (@inner $self:expr; $input:expr; $out:ident, $($arg:ident,)*; $($acc:ident,)*; $i:tt,) => {
+        match $self.$i.parse($input) {
+            Ok(($out, rem)) => Ok((($($acc,)* $out,), rem)),
+            Err(err) => Err(err),
+        }
+    };
+
+    (@inner $self:expr; $input:expr; $out:ident, $($arg:ident,)*; $($acc:ident,)*; $i:tt, $($idx:tt,)+) => {
+        match $self.$i.parse($input) {
+            Ok(($out, rem)) => impl_series!(@inner $self; rem; $($arg,)*; $($acc,)* $out,; $($idx,)+),
+            Err(err) => Err(err),
+        }
+    };
+}
+
+impl_series! {
+    (0, A, N),
+    (1, B, O),
+    (2, C, P),
+    (3, D, Q),
+    (4, E, R),
+    (5, F, S),
+    (6, G, T),
+    (7, H, U),
+    (8, I, V),
+    (9, J, W),
+    (10, K, X),
+    (11, L, Y),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,6 +200,96 @@ mod tests {
         );
         assert_eq!(parse("", series(())), Ok(((), "")));
         assert_eq!(parse("hello", series(())), Ok(((), "hello")));
+        assert_eq!(
+            parse("", series(("hello", ' ', "world"))),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("hello", series(("hello", ' ', "world"))),
+            Err(Error::expect(' ').but_found_end())
+        );
+        assert_eq!(
+            parse("hello ", series(("hello", ' ', "world"))),
+            Err(Error::expect('w').but_found_end())
+        );
+        assert_eq!(
+            parse("hello world", series(("hello", ' ', "world"))),
+            Ok((("hello", ' ', "world"), ""))
+        );
+        assert_eq!(
+            parse("hello world!", series(("hello", ' ', "world"))),
+            Ok((("hello", ' ', "world"), "!"))
+        );
+        assert_eq!(
+            parse("hello universe!", series(("hello", ' ', "world"))),
+            Err(Error::expect('w').but_found('u'))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h',))),
+            Ok((('h',), "ello world!"))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h', 'e'))),
+            Ok((('h', 'e'), "llo world!"))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h', 'e', 'l'))),
+            Ok((('h', 'e', 'l'), "lo world!"))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h', 'e', 'l', 'l'))),
+            Ok((('h', 'e', 'l', 'l'), "o world!"))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h', 'e', 'l', 'l', 'o'))),
+            Ok((('h', 'e', 'l', 'l', 'o'), " world!"))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h', 'e', 'l', 'l', 'o', ' '))),
+            Ok((('h', 'e', 'l', 'l', 'o', ' '), "world!"))
+        );
+        assert_eq!(
+            parse("hello world!", series(('h', 'e', 'l', 'l', 'o', ' ', 'w'))),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w'), "orld!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                series(('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o'))
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o'), "rld!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                series(('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r'))
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r'), "ld!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                series(('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l'))
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l'), "d!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                series(('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'))
+            ),
+            Ok((('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'), "!"))
+        );
+        assert_eq!(
+            parse(
+                "hello world!",
+                series(('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'))
+            ),
+            Ok((
+                ('h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'),
+                ""
+            ))
+        );
     }
 
     #[test]
