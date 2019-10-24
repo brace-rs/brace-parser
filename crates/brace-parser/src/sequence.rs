@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::error::Error;
-use crate::parser::{take_while, Parser};
+use crate::parser::{take_while, Output, Parser};
 
 pub fn sequence<'a, T>(sequence: T) -> impl Parser<'a, &'a str>
 where
@@ -28,61 +28,61 @@ where
     }
 }
 
-pub fn any(input: &str) -> Result<(&str, &str), Error> {
+pub fn any(input: &str) -> Output<&str> {
     take_while(|_| true)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Any))
 }
 
-pub fn decimal(input: &str) -> Result<(&str, &str), Error> {
+pub fn decimal(input: &str) -> Output<&str> {
     take_while(char::is_ascii_digit)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Decimal))
 }
 
-pub fn hexadecimal(input: &str) -> Result<(&str, &str), Error> {
+pub fn hexadecimal(input: &str) -> Output<&str> {
     take_while(char::is_ascii_hexdigit)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Hexadecimal))
 }
 
-pub fn alphabetic(input: &str) -> Result<(&str, &str), Error> {
+pub fn alphabetic(input: &str) -> Output<&str> {
     take_while(char::is_ascii_alphabetic)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Alphabetic))
 }
 
-pub fn alphanumeric(input: &str) -> Result<(&str, &str), Error> {
+pub fn alphanumeric(input: &str) -> Output<&str> {
     take_while(char::is_ascii_alphanumeric)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Alphanumeric))
 }
 
-pub fn lowercase(input: &str) -> Result<(&str, &str), Error> {
+pub fn lowercase(input: &str) -> Output<&str> {
     take_while(char::is_ascii_lowercase)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Lowercase))
 }
 
-pub fn uppercase(input: &str) -> Result<(&str, &str), Error> {
+pub fn uppercase(input: &str) -> Output<&str> {
     take_while(char::is_ascii_uppercase)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Uppercase))
 }
 
-pub fn indent(input: &str) -> Result<(&str, &str), Error> {
+pub fn indent(input: &str) -> Output<&str> {
     take_while(crate::character::is_ascii_indent)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Indent))
 }
 
-pub fn linebreak(input: &str) -> Result<(&str, &str), Error> {
+pub fn linebreak(input: &str) -> Output<&str> {
     take_while(crate::character::is_ascii_linebreak)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Linebreak))
 }
 
-pub fn whitespace(input: &str) -> Result<(&str, &str), Error> {
+pub fn whitespace(input: &str) -> Output<&str> {
     take_while(char::is_ascii_whitespace)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Whitespace))
@@ -113,7 +113,7 @@ impl Sequence {
 }
 
 impl<'a> Parser<'a, &'a str> for Sequence {
-    fn parse(&self, input: &'a str) -> Result<(&'a str, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
         match self {
             Self::Any => any.parse(input),
             Self::Decimal => decimal.parse(input),

@@ -1,5 +1,4 @@
-use crate::error::Error;
-use crate::parser::Parser;
+use crate::parser::{Output, Parser};
 
 pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
     move |input| series.parse_series(input)
@@ -75,11 +74,11 @@ pub fn list<'a, T, S>(
 }
 
 pub trait Series<'a, O> {
-    fn parse_series(&self, input: &'a str) -> Result<(O, &'a str), Error>;
+    fn parse_series(&self, input: &'a str) -> Output<'a, O>;
 }
 
 impl<'a> Series<'a, ()> for () {
-    fn parse_series(&self, input: &'a str) -> Result<((), &'a str), Error> {
+    fn parse_series(&self, input: &'a str) -> Output<'a, ()> {
         Ok(((), input))
     }
 }
@@ -88,7 +87,7 @@ impl<'a, T, O> Series<'a, Vec<O>> for Vec<T>
 where
     T: Parser<'a, O>,
 {
-    fn parse_series(&self, input: &'a str) -> Result<(Vec<O>, &'a str), Error> {
+    fn parse_series(&self, input: &'a str) -> Output<'a, Vec<O>> {
         let mut out = Vec::new();
         let mut rem = input;
 
@@ -125,7 +124,7 @@ macro_rules! impl_series {
         where
             $($T: Parser<'a, $O>,)+
         {
-            fn parse_series(&self, input: &'a str) -> Result<(($($O,)+), &'a str), Error> {
+            fn parse_series(&self, input: &'a str) -> Output<'a, ($($O,)+)> {
                 impl_series!(@start self; input; $($idx,)+)
             }
         }

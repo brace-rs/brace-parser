@@ -1,8 +1,7 @@
 use std::borrow::Borrow;
 use std::fmt;
 
-use crate::error::Error;
-use crate::parser::{take, Parser};
+use crate::parser::{take, Output, Parser};
 
 pub fn character<'a, T>(ch: T) -> impl Parser<'a, char>
 where
@@ -16,70 +15,70 @@ where
     }
 }
 
-pub fn any(input: &str) -> Result<(char, &str), Error> {
+pub fn any(input: &str) -> Output<char> {
     take(|_| true)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Any))
 }
 
-pub fn decimal(input: &str) -> Result<(char, &str), Error> {
+pub fn decimal(input: &str) -> Output<char> {
     take(char::is_ascii_digit)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Decimal))
 }
 
-pub fn hexadecimal(input: &str) -> Result<(char, &str), Error> {
+pub fn hexadecimal(input: &str) -> Output<char> {
     take(char::is_ascii_hexdigit)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Hexadecimal))
 }
 
-pub fn alphabetic(input: &str) -> Result<(char, &str), Error> {
+pub fn alphabetic(input: &str) -> Output<char> {
     take(char::is_ascii_alphabetic)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Alphabetic))
 }
 
-pub fn alphanumeric(input: &str) -> Result<(char, &str), Error> {
+pub fn alphanumeric(input: &str) -> Output<char> {
     take(char::is_ascii_alphanumeric)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Alphanumeric))
 }
 
-pub fn lowercase(input: &str) -> Result<(char, &str), Error> {
+pub fn lowercase(input: &str) -> Output<char> {
     take(char::is_ascii_lowercase)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Lowercase))
 }
 
-pub fn uppercase(input: &str) -> Result<(char, &str), Error> {
+pub fn uppercase(input: &str) -> Output<char> {
     take(char::is_ascii_uppercase)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Uppercase))
 }
 
-pub fn indent(input: &str) -> Result<(char, &str), Error> {
+pub fn indent(input: &str) -> Output<char> {
     take(is_ascii_indent)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Indent))
 }
 
-pub fn linebreak(input: &str) -> Result<(char, &str), Error> {
+pub fn linebreak(input: &str) -> Output<char> {
     take(is_ascii_linebreak)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Linebreak))
 }
 
-pub fn whitespace(input: &str) -> Result<(char, &str), Error> {
+pub fn whitespace(input: &str) -> Output<char> {
     take(char::is_ascii_whitespace)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
@@ -111,7 +110,7 @@ impl Character {
 }
 
 impl<'a> Parser<'a, char> for Character {
-    fn parse(&self, input: &'a str) -> Result<(char, &'a str), Error> {
+    fn parse(&self, input: &'a str) -> Output<'a, char> {
         match self {
             Self::Any => any.parse(input),
             Self::Decimal => decimal.parse(input),
