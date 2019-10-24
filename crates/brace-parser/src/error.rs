@@ -12,6 +12,13 @@ impl Error {
         Self(Some(Expect::Valid), None)
     }
 
+    pub fn context<T>(ctx: T, err: Error) -> Self
+    where
+        T: Into<String>,
+    {
+        Self(Some(Expect::Context(ctx.into(), Box::new(err))), None)
+    }
+
     pub fn expect<T>(expect: T) -> Self
     where
         T: Into<Expect>,
@@ -76,6 +83,7 @@ pub enum Expect {
     Valid,
     Character(Character),
     Sequence(Sequence),
+    Context(String, Box<Error>),
 }
 
 impl fmt::Display for Expect {
@@ -85,6 +93,7 @@ impl fmt::Display for Expect {
             Self::Valid => write!(f, "valid parser"),
             Self::Character(ch) => write!(f, "character: {}", ch),
             Self::Sequence(seq) => write!(f, "sequence: {}", seq),
+            Self::Context(ctx, _) => write!(f, "{}", ctx),
         }
     }
 }
