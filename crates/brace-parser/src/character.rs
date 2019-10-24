@@ -1,7 +1,8 @@
 use std::borrow::Borrow;
 use std::fmt;
 
-use crate::{take, Error, Parser};
+use crate::error::Error;
+use crate::parser::{take, Parser};
 
 pub fn character<'a, T>(ch: T) -> impl Parser<'a, char>
 where
@@ -65,14 +66,14 @@ pub fn uppercase(input: &str) -> Result<(char, &str), Error> {
 }
 
 pub fn indent(input: &str) -> Result<(char, &str), Error> {
-    take(crate::util::is_ascii_indent)
+    take(is_ascii_indent)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Indent))
 }
 
 pub fn linebreak(input: &str) -> Result<(char, &str), Error> {
-    take(crate::util::is_ascii_linebreak)
+    take(is_ascii_linebreak)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Linebreak))
@@ -151,10 +152,27 @@ impl From<char> for Character {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
+pub(crate) fn is_ascii_linebreak(ch: &char) -> bool {
+    match *ch as u8 {
+        b'\n' | b'\r' | b'\x0C' => true,
+        _ => false,
+    }
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+pub(crate) fn is_ascii_indent(ch: &char) -> bool {
+    match *ch as u8 {
+        b' ' | b'\t' => true,
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parse, Error};
+    use crate::error::Error;
+    use crate::parser::parse;
 
     #[test]
     fn test_character() {

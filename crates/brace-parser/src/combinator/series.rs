@@ -1,14 +1,8 @@
-use crate::{Error, Parser};
+use crate::error::Error;
+use crate::parser::Parser;
 
-pub fn optional<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Option<O>> {
-    move |input| match parser.parse(input) {
-        Ok((out, rem)) => Ok((Some(out), rem)),
-        Err(_) => Ok((None, input)),
-    }
-}
-
-pub fn either<'a, O>(a: impl Parser<'a, O>, b: impl Parser<'a, O>) -> impl Parser<'a, O> {
-    move |input| a.parse(input).or_else(|_| b.parse(input))
+pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
+    move |input| series.parse_series(input)
 }
 
 pub fn pair<'a, A, B>(a: impl Parser<'a, A>, b: impl Parser<'a, B>) -> impl Parser<'a, (A, B)> {
@@ -54,13 +48,6 @@ pub fn delimited<'a, A, B, C>(
     c: impl Parser<'a, C>,
 ) -> impl Parser<'a, B> {
     leading(a, trailing(b, c))
-}
-
-pub fn map<'a, M, A, B>(parser: impl Parser<'a, A>, map: M) -> impl Parser<'a, B>
-where
-    M: Fn(A) -> B,
-{
-    move |input| parser.parse(input).map(|(out, rem)| (map(out), rem))
 }
 
 pub fn list<'a, T, S>(
@@ -119,81 +106,41 @@ where
     }
 }
 
-pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
-    move |input| series.parse_series(input)
-}
-
-pub trait Branch<'a, O> {
-    fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error>;
-}
-
-impl<'a> Branch<'a, ()> for () {
-    fn parse_branch(&self, input: &'a str) -> Result<((), &'a str), Error> {
-        Ok(((), input))
-    }
-}
-
-impl<'a, T, O> Branch<'a, O> for Vec<T>
-where
-    T: Parser<'a, O>,
-{
-    fn parse_branch(&self, input: &'a str) -> Result<(O, &'a str), Error> {
-        let mut out = Err(Error::invalid());
-
-        for parser in self {
-            out = parser.parse(input);
-
-            if out.is_ok() {
-                return out;
-            }
-        }
-
-        out
-    }
-}
-
-pub fn branch<'a, O>(branch: impl Branch<'a, O>) -> impl Parser<'a, O> {
-    move |input| branch.parse_branch(input)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::Error;
+    use crate::parser::parse;
     use crate::sequence::{alphabetic, whitespace};
-    use crate::{parse, Error};
 
     #[test]
-    fn test_optional() {
-        assert_eq!(parse("", optional("hello")), Ok((None, "")));
-        assert_eq!(parse("$", optional("hello")), Ok((None, "$")));
-        assert_eq!(parse("hello", optional("hello")), Ok((Some("hello"), "")));
+    fn test_series() {
         assert_eq!(
-            parse("hello world", optional("hello")),
-            Ok((Some("hello"), " world"))
-        );
-    }
-
-    #[test]
-    fn test_either() {
-        assert_eq!(
-            parse("", either("one", "two")),
-            Err(Error::expect('t').but_found_end())
+            parse("", series(vec!["hello", " ", "world"])),
+            Err(Error::expect('h').but_found_end())
         );
         assert_eq!(
-            parse("$", either("one", "two")),
-            Err(Error::expect('t').but_found('$'))
-        );
-        assert_eq!(parse("one", either("one", "two")), Ok(("one", "")));
-        assert_eq!(parse("two", either("one", "two")), Ok(("two", "")));
-        assert_eq!(
-            parse("three", either("one", "two")),
-            Err(Error::expect('w').but_found('h'))
+            parse("hello", series(vec!["hello", " ", "world"])),
+            Err(Error::expect(' ').but_found_end())
         );
         assert_eq!(
-            parse("three", either("two", "one")),
-            Err(Error::expect('o').but_found('t'))
+            parse("hello ", series(vec!["hello", " ", "world"])),
+            Err(Error::expect('w').but_found_end())
         );
-        assert_eq!(parse("onetwo", either("one", "two")), Ok(("one", "two")));
+        assert_eq!(
+            parse("hello world", series(vec!["hello", " ", "world"])),
+            Ok((vec!["hello", " ", "world"], ""))
+        );
+        assert_eq!(
+            parse("hello world!", series(vec!["hello", " ", "world"])),
+            Ok((vec!["hello", " ", "world"], "!"))
+        );
+        assert_eq!(
+            parse("hello universe!", series(vec!["hello", " ", "world"])),
+            Err(Error::expect('w').but_found('u'))
+        );
+        assert_eq!(parse("", series(())), Ok(((), "")));
+        assert_eq!(parse("hello", series(())), Ok(((), "hello")));
     }
 
     #[test]
@@ -355,18 +302,6 @@ mod tests {
     }
 
     #[test]
-    fn test_map() {
-        assert_eq!(
-            parse("hello", map("hello", |seq| seq.to_owned() + "!")),
-            Ok(("hello!".to_owned(), ""))
-        );
-        assert_eq!(
-            parse("hello", map('h', Option::Some)),
-            Ok((Some('h'), "ello"))
-        );
-    }
-
-    #[test]
     fn test_list() {
         assert_eq!(
             parse("", list('a', ',')),
@@ -386,60 +321,5 @@ mod tests {
             parse("a,a,a,b", list('a', ',')),
             Ok((vec!['a', 'a', 'a'], ",b"))
         );
-    }
-
-    #[test]
-    fn test_series() {
-        assert_eq!(
-            parse("", series(vec!["hello", " ", "world"])),
-            Err(Error::expect('h').but_found_end())
-        );
-        assert_eq!(
-            parse("hello", series(vec!["hello", " ", "world"])),
-            Err(Error::expect(' ').but_found_end())
-        );
-        assert_eq!(
-            parse("hello ", series(vec!["hello", " ", "world"])),
-            Err(Error::expect('w').but_found_end())
-        );
-        assert_eq!(
-            parse("hello world", series(vec!["hello", " ", "world"])),
-            Ok((vec!["hello", " ", "world"], ""))
-        );
-        assert_eq!(
-            parse("hello world!", series(vec!["hello", " ", "world"])),
-            Ok((vec!["hello", " ", "world"], "!"))
-        );
-        assert_eq!(
-            parse("hello universe!", series(vec!["hello", " ", "world"])),
-            Err(Error::expect('w').but_found('u'))
-        );
-        assert_eq!(parse("", series(())), Ok(((), "")));
-        assert_eq!(parse("hello", series(())), Ok(((), "hello")));
-    }
-
-    #[test]
-    fn test_branch() {
-        assert_eq!(parse("", branch(Vec::<&str>::new())), Err(Error::invalid()));
-        assert_eq!(
-            parse("a", branch(Vec::<&str>::new())),
-            Err(Error::invalid())
-        );
-        assert_eq!(
-            parse("", branch(vec!["a", "b", "c"])),
-            Err(Error::expect('c').but_found_end())
-        );
-        assert_eq!(parse("a", branch(vec!["a", "b", "c"])), Ok(("a", "")));
-        assert_eq!(parse("b", branch(vec!["a", "b", "c"])), Ok(("b", "")));
-        assert_eq!(parse("c", branch(vec!["a", "b", "c"])), Ok(("c", "")));
-        assert_eq!(parse("a!", branch(vec!["a", "b", "c"])), Ok(("a", "!")));
-        assert_eq!(parse("b!", branch(vec!["a", "b", "c"])), Ok(("b", "!")));
-        assert_eq!(parse("c!", branch(vec!["a", "b", "c"])), Ok(("c", "!")));
-        assert_eq!(
-            parse("d", branch(vec!["a", "b", "c"])),
-            Err(Error::expect('c').but_found('d'))
-        );
-        assert_eq!(parse("", branch(())), Ok(((), "")));
-        assert_eq!(parse("hello", branch(())), Ok(((), "hello")));
     }
 }

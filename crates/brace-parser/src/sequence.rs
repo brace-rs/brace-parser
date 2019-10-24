@@ -1,6 +1,7 @@
 use std::fmt;
 
-use crate::{take_while, Error, Parser};
+use crate::error::Error;
+use crate::parser::{take_while, Parser};
 
 pub fn sequence<'a, T>(sequence: T) -> impl Parser<'a, &'a str>
 where
@@ -70,13 +71,13 @@ pub fn uppercase(input: &str) -> Result<(&str, &str), Error> {
 }
 
 pub fn indent(input: &str) -> Result<(&str, &str), Error> {
-    take_while(crate::util::is_ascii_indent)
+    take_while(crate::character::is_ascii_indent)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Indent))
 }
 
 pub fn linebreak(input: &str) -> Result<(&str, &str), Error> {
-    take_while(crate::util::is_ascii_linebreak)
+    take_while(crate::character::is_ascii_linebreak)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Linebreak))
 }
@@ -162,7 +163,8 @@ impl From<String> for Sequence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parse, Error};
+    use crate::error::Error;
+    use crate::parser::parse;
 
     #[test]
     fn test_sequence() {
