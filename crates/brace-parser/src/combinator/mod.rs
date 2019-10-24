@@ -18,6 +18,17 @@ where
     move |input| parser.parse(input).map_err(|err| map(err))
 }
 
+pub fn context<'a, O, C>(ctx: C, parser: impl Parser<'a, O>) -> impl Parser<'a, O>
+where
+    C: AsRef<str>,
+{
+    move |input| {
+        parser
+            .parse(input)
+            .map_err(|err| Error::context(ctx.as_ref(), err))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,6 +55,24 @@ mod tests {
         assert_eq!(
             parse("h", map_err("hello", |err| err.but_found('!'))),
             Err(Error::expect('e').but_found('!'))
+        );
+    }
+
+    #[test]
+    fn test_context() {
+        assert_eq!(
+            parse("", context("greeting", "hello")),
+            Err(Error::context(
+                "greeting",
+                Error::expect('h').but_found_end()
+            ))
+        );
+        assert_eq!(
+            parse("h", context("greeting", "hello")),
+            Err(Error::context(
+                "greeting",
+                Error::expect('e').but_found_end()
+            ))
         );
     }
 }
