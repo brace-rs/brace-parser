@@ -414,6 +414,8 @@ mod tests {
             parse("hello universe!", series(vec!["hello", " ", "world"])),
             Err(Error::expect('w').but_found('u'))
         );
+        assert_eq!(parse("", series(())), Ok(((), "")));
+        assert_eq!(parse("hello", series(())), Ok(((), "hello")));
     }
 
     #[test]
@@ -437,5 +439,7 @@ mod tests {
             parse("d", branch(vec!["a", "b", "c"])),
             Err(Error::expect('c').but_found('d'))
         );
+        assert_eq!(parse("", branch(())), Ok(((), "")));
+        assert_eq!(parse("hello", branch(())), Ok(((), "hello")));
     }
 }

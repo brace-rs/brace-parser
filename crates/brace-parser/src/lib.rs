@@ -118,6 +118,12 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_unit() {
+        assert_eq!(parse("", ()), Ok(((), "")));
+        assert_eq!(parse("hello", ()), Ok(((), "hello")));
+    }
+
+    #[test]
     fn test_parser_char() {
         assert_eq!(parse("", 'h'), Err(Error::expect('h').but_found_end()));
         assert_eq!(parse("$", 'h'), Err(Error::expect('h').but_found('$')));
