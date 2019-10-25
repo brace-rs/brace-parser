@@ -29,6 +29,14 @@ where
     }
 }
 
+pub fn consume<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, &'a str> {
+    move |input| {
+        parser
+            .parse(input)
+            .map(|(_, rem)| input.split_at(input.len() - rem.len()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,5 +82,27 @@ mod tests {
                 Error::expect('e').but_found_end()
             ))
         );
+    }
+
+    #[test]
+    fn test_consume() {
+        assert_eq!(
+            parse("", consume(('h', 'e', 'l', 'l', 'o'))),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("help", consume(('h', 'e', 'l', 'l', 'o'))),
+            Err(Error::expect('l').but_found('p'))
+        );
+        assert_eq!(
+            parse("hello", consume(('h', 'e', 'l', 'l', 'o'))),
+            Ok(("hello", ""))
+        );
+        assert_eq!(
+            parse("hello world", consume(('h', 'e', 'l', 'l', 'o'))),
+            Ok(("hello", " world"))
+        );
+        assert_eq!(parse("", consume("")), Ok(("", "")));
+        assert_eq!(parse("hello", consume("")), Ok(("", "hello")));
     }
 }
