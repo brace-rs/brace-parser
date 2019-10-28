@@ -12,11 +12,11 @@ where
 
 pub fn take<'a, P>(predicate: P) -> impl Parser<'a, &'a str>
 where
-    P: Fn(&char) -> bool,
+    P: Fn(char) -> bool,
 {
     move |input: &'a str| match input.chars().next() {
         Some(ch) => {
-            if predicate(&ch) {
+            if predicate(ch) {
                 Ok(input.split_at(ch.len_utf8()))
             } else {
                 Err(Error::found(ch))
@@ -28,7 +28,7 @@ where
 
 pub fn take_while<'a, P>(predicate: P) -> impl Parser<'a, &'a str>
 where
-    P: Fn(&char) -> bool,
+    P: Fn(char) -> bool,
 {
     move |input: &'a str| {
         let mut iter = input.chars();
@@ -36,11 +36,11 @@ where
 
         match iter.next() {
             Some(ch) => {
-                if predicate(&ch) {
+                if predicate(ch) {
                     pos = ch.len_utf8();
 
                     for ch in iter {
-                        if !predicate(&ch) {
+                        if !predicate(ch) {
                             break;
                         }
 
@@ -138,12 +138,13 @@ impl_parser! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::character::is_alphabetic;
 
     struct Custom;
 
     impl<'a> Parser<'a, &'a str> for Custom {
         fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
-            take(|ch| ch == &'$').parse(input)
+            take(|ch| ch == '$').parse(input)
         }
     }
 
@@ -306,17 +307,11 @@ mod tests {
 
     #[test]
     fn test_take() {
+        assert_eq!(parse("", take(is_alphabetic)), Err(Error::found_end()));
+        assert_eq!(parse("h", take(is_alphabetic)), Ok(("h", "")));
+        assert_eq!(parse("hello", take(is_alphabetic)), Ok(("h", "ello")));
         assert_eq!(
-            parse("", take(char::is_ascii_alphabetic)),
-            Err(Error::found_end())
-        );
-        assert_eq!(parse("h", take(char::is_ascii_alphabetic)), Ok(("h", "")));
-        assert_eq!(
-            parse("hello", take(char::is_ascii_alphabetic)),
-            Ok(("h", "ello"))
-        );
-        assert_eq!(
-            parse("hello world", take(char::is_ascii_alphabetic)),
+            parse("hello world", take(is_alphabetic)),
             Ok(("h", "ello world"))
         );
         assert_eq!(
@@ -336,19 +331,13 @@ mod tests {
     #[test]
     fn test_take_while() {
         assert_eq!(
-            parse("", take_while(char::is_ascii_alphabetic)),
+            parse("", take_while(is_alphabetic)),
             Err(Error::found_end())
         );
+        assert_eq!(parse("h", take_while(is_alphabetic)), Ok(("h", "")));
+        assert_eq!(parse("hello", take_while(is_alphabetic)), Ok(("hello", "")));
         assert_eq!(
-            parse("h", take_while(char::is_ascii_alphabetic)),
-            Ok(("h", ""))
-        );
-        assert_eq!(
-            parse("hello", take_while(char::is_ascii_alphabetic)),
-            Ok(("hello", ""))
-        );
-        assert_eq!(
-            parse("hello world", take_while(char::is_ascii_alphabetic)),
+            parse("hello world", take_while(is_alphabetic)),
             Ok(("hello", " world"))
         );
         assert_eq!(

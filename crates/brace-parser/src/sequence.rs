@@ -35,55 +35,55 @@ pub fn any(input: &str) -> Output<&str> {
 }
 
 pub fn decimal(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_digit)
+    take_while(crate::character::is_decimal)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Decimal))
 }
 
 pub fn hexadecimal(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_hexdigit)
+    take_while(crate::character::is_hexadecimal)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Hexadecimal))
 }
 
 pub fn alphabetic(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_alphabetic)
+    take_while(crate::character::is_alphabetic)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Alphabetic))
 }
 
 pub fn alphanumeric(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_alphanumeric)
+    take_while(crate::character::is_alphanumeric)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Alphanumeric))
 }
 
 pub fn lowercase(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_lowercase)
+    take_while(crate::character::is_lowercase)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Lowercase))
 }
 
 pub fn uppercase(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_uppercase)
+    take_while(crate::character::is_uppercase)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Uppercase))
 }
 
 pub fn indent(input: &str) -> Output<&str> {
-    take_while(crate::character::is_ascii_indent)
+    take_while(crate::character::is_indent)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Indent))
 }
 
 pub fn linebreak(input: &str) -> Output<&str> {
-    take_while(crate::character::is_ascii_linebreak)
+    take_while(crate::character::is_linebreak)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Linebreak))
 }
 
 pub fn whitespace(input: &str) -> Output<&str> {
-    take_while(char::is_ascii_whitespace)
+    take_while(crate::character::is_whitespace)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Whitespace))
 }
