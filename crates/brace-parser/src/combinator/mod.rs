@@ -47,8 +47,54 @@ pub fn not<'a>(parser: impl Parser<'a, char>) -> impl Parser<'a, char> {
     }
 }
 
+pub fn escaped<'a>(
+    valid: impl Parser<'a, char>,
+    escaped: impl Parser<'a, char>,
+) -> impl Parser<'a, &'a str> {
+    move |input: &'a str| {
+        let mut iter = input.chars();
+        let mut idx = 0;
+
+        while let Some(ch) = iter.next() {
+            if ch == '\\' {
+                idx += ch.len_utf8();
+
+                match iter.next() {
+                    Some(ch) => match escaped.parse(&input[idx..]) {
+                        Ok(_) => {
+                            idx += ch.len_utf8();
+                        }
+                        Err(err) => return Err(err),
+                    },
+                    None => return Err(Error::found('\\')),
+                }
+            } else {
+                match valid.parse(&input[idx..]) {
+                    Ok(_) => {
+                        idx += ch.len_utf8();
+                    }
+                    Err(err) => {
+                        if idx == 0 {
+                            return Err(err);
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        if idx == 0 {
+            Err(Error::found_end())
+        } else {
+            Ok(input.split_at(idx))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::branch::either;
     use super::*;
     use crate::parser::parse;
 
@@ -123,5 +169,89 @@ mod tests {
         assert_eq!(parse("hello", not('h')), Err(Error::found('h')));
         assert_eq!(parse("g", not('h')), Ok(('g', "")));
         assert_eq!(parse("goodbye", not('h')), Ok(('g', "oodbye")));
+    }
+
+    #[test]
+    fn test_escaped() {
+        assert_eq!(
+            parse("", escaped(not('"'), either('"', '\\'))),
+            Err(Error::found_end())
+        );
+        assert_eq!(
+            parse("\"", escaped(not('"'), either('"', '\\'))),
+            Err(Error::found('"'))
+        );
+        assert_eq!(
+            parse("\\", escaped(not('"'), either('"', '\\'))),
+            Err(Error::found('\\'))
+        );
+        assert_eq!(
+            parse("hello world", escaped(not('"'), either('"', '\\'))),
+            Ok(("hello world", ""))
+        );
+        assert_eq!(
+            parse(r#""hello world""#, escaped(not('"'), either('"', '\\'))),
+            Err(Error::found('"'))
+        );
+        assert_eq!(
+            parse(r#"\"hello world\""#, escaped(not('"'), either('"', '\\'))),
+            Ok(("\\\"hello world\\\"", ""))
+        );
+        assert_eq!(
+            parse(r#"\\"hello world\\""#, escaped(not('"'), either('"', '\\'))),
+            Ok(("\\\\", "\"hello world\\\\\""))
+        );
+        assert_eq!(
+            parse(
+                r#"\\\"hello world\\\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok(("\\\\\\\"hello world\\\\\\\"", ""))
+        );
+        assert_eq!(
+            parse(
+                r#"\\\\"hello world\\\\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok(("\\\\\\\\", "\"hello world\\\\\\\\\""))
+        );
+        assert_eq!(
+            parse(
+                r#"\\\\\"hello world\\\\\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok(("\\\\\\\\\\\"hello world\\\\\\\\\\\"", ""))
+        );
+        assert_eq!(
+            parse(
+                r#"\\\\\\"hello world\\\\\\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok(("\\\\\\\\\\\\", "\"hello world\\\\\\\\\\\\\""))
+        );
+        assert_eq!(
+            parse(
+                r#"\\\\\\\"hello world\\\\\\\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok(("\\\\\\\\\\\\\\\"hello world\\\\\\\\\\\\\\\"", ""))
+        );
+        assert_eq!(
+            parse(
+                r#"\"\\\"hello world\\\"\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok(("\\\"\\\\\\\"hello world\\\\\\\"\\\"", ""))
+        );
+        assert_eq!(
+            parse(
+                r#"\"\\\"\\\\\\\"hello world\\\\\\\"\\\"\""#,
+                escaped(not('"'), either('"', '\\'))
+            ),
+            Ok((
+                "\\\"\\\\\\\"\\\\\\\\\\\\\\\"hello world\\\\\\\\\\\\\\\"\\\\\\\"\\\"",
+                ""
+            ))
+        );
     }
 }
