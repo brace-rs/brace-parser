@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn test_whitespace() {
-        for ch in " \t\n\t\u{000C}".chars() {
+        for ch in " \t\n\r\u{000C}".chars() {
             assert_eq!(parse(&ch.to_string(), whitespace), Ok((ch, "")));
             assert_eq!(parse(&(ch.to_string() + "$"), whitespace), Ok((ch, "$")));
         }
@@ -599,7 +599,7 @@ mod tests {
 
     #[test]
     fn test_whitespace_variant() {
-        for ch in " \t\n\t\u{000C}".chars() {
+        for ch in " \t\n\r\u{000C}".chars() {
             assert_eq!(parse(&ch.to_string(), Character::Whitespace), Ok((ch, "")));
             assert_eq!(
                 parse(&(ch.to_string() + "$"), Character::Whitespace),
