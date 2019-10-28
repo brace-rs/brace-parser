@@ -92,6 +92,41 @@ pub fn escaped<'a>(
     }
 }
 
+pub fn unescape<'a>(
+    parser: impl Parser<'a, &'a str>,
+    escaped: impl Parser<'a, char>,
+) -> impl Parser<'a, String> {
+    move |input: &'a str| {
+        parser.parse(input).and_then(|(input, rem)| {
+            let mut iter = input.chars();
+            let mut idx = 0;
+            let mut out = String::new();
+
+            while let Some(ch) = iter.next() {
+                if ch == '\\' {
+                    idx += ch.len_utf8();
+
+                    match iter.next() {
+                        Some(ch) => match escaped.parse(&input[idx..]) {
+                            Ok((o, _)) => {
+                                idx += ch.len_utf8();
+                                out.push(o);
+                            }
+                            Err(err) => return Err(err),
+                        },
+                        None => return Err(Error::found('\\')),
+                    }
+                } else {
+                    idx += ch.len_utf8();
+                    out.push(ch);
+                }
+            }
+
+            Ok((out, rem))
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::branch::either;
@@ -252,6 +287,53 @@ mod tests {
                 "\\\"\\\\\\\"\\\\\\\\\\\\\\\"hello world\\\\\\\\\\\\\\\"\\\\\\\"\\\"",
                 ""
             ))
+        );
+    }
+
+    #[test]
+    fn test_unescape() {
+        assert_eq!(
+            parse("", unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))),
+            Err(Error::found_end())
+        );
+        assert_eq!(
+            parse("\n", unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))),
+            Err(Error::found('\n'))
+        );
+        assert_eq!(
+            parse(
+                "hello",
+                unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))
+            ),
+            Ok(("hello".to_owned(), ""))
+        );
+        assert_eq!(
+            parse(
+                "hello world",
+                unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))
+            ),
+            Ok(("hello world".to_owned(), ""))
+        );
+        assert_eq!(
+            parse(
+                "hello\nworld",
+                unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))
+            ),
+            Ok(("hello".to_owned(), "\nworld"))
+        );
+        assert_eq!(
+            parse(
+                "hello\\nworld",
+                unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))
+            ),
+            Ok(("hello\nworld".to_owned(), ""))
+        );
+        assert_eq!(
+            parse(
+                "\\nhello\\nworld\\n",
+                unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))
+            ),
+            Ok(("\nhello\nworld\n".to_owned(), ""))
         );
     }
 }
