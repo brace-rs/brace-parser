@@ -1,19 +1,6 @@
-use std::borrow::Borrow;
 use std::fmt;
 
 use crate::parser::{take, Output, Parser};
-
-pub fn character<'a, T>(ch: T) -> impl Parser<'a, char>
-where
-    T: Borrow<char>,
-{
-    move |input| {
-        take(|character| character == *ch.borrow())
-            .parse(input)
-            .map(|(_, rem)| (*ch.borrow(), rem))
-            .map_err(|err| err.but_expect(*ch.borrow()))
-    }
-}
 
 pub fn any(input: &str) -> Output<char> {
     take(|_| true)
@@ -219,21 +206,6 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use crate::parser::parse;
-
-    #[test]
-    fn test_character() {
-        assert_eq!(
-            parse("", character('h')),
-            Err(Error::expect('h').but_found_end())
-        );
-        assert_eq!(
-            parse("$", character('h')),
-            Err(Error::expect('h').but_found('$'))
-        );
-        assert_eq!(parse("h", character('h')), Ok(('h', "")));
-        assert_eq!(parse("hello", character('h')), Ok(('h', "ello")));
-        assert_eq!(parse("hello", character(&'h')), Ok(('h', "ello")));
-    }
 
     #[test]
     fn test_any() {

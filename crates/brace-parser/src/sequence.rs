@@ -1,32 +1,6 @@
 use std::fmt;
 
-use crate::error::Error;
 use crate::parser::{take_while, Output, Parser};
-
-pub fn sequence<'a, T>(sequence: T) -> impl Parser<'a, &'a str>
-where
-    T: AsRef<str>,
-{
-    move |input: &'a str| {
-        let mut iter = input.chars();
-        let mut pos = 0;
-
-        for ch in sequence.as_ref().chars() {
-            match iter.next() {
-                Some(character) => {
-                    if ch == character {
-                        pos += ch.len_utf8();
-                    } else {
-                        return Err(Error::expect(ch).but_found(character));
-                    }
-                }
-                None => return Err(Error::expect(ch).but_found_end()),
-            }
-        }
-
-        Ok(input.split_at(pos))
-    }
-}
 
 pub fn any(input: &str) -> Output<&str> {
     take_while(|_| true)
@@ -165,25 +139,6 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use crate::parser::parse;
-
-    #[test]
-    fn test_sequence() {
-        assert_eq!(
-            parse("", sequence("hello")),
-            Err(Error::expect('h').but_found_end())
-        );
-        assert_eq!(
-            parse("h", sequence("hello")),
-            Err(Error::expect('e').but_found_end())
-        );
-        assert_eq!(
-            parse("help", sequence("hello")),
-            Err(Error::expect('l').but_found('p'))
-        );
-        assert_eq!(parse("hello", sequence("hello")), Ok(("hello", "")));
-        assert_eq!(parse("hello$", sequence("hello")), Ok(("hello", "$")));
-        assert_eq!(parse("hello", sequence("")), Ok(("", "hello")));
-    }
 
     #[test]
     fn test_any() {
