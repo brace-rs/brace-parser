@@ -8,7 +8,7 @@ where
     T: Borrow<char>,
 {
     move |input| {
-        take(|character| character == ch.borrow())
+        take(|character| character == *ch.borrow())
             .parse(input)
             .map(|(_, rem)| (*ch.borrow(), rem))
             .map_err(|err| err.but_expect(*ch.borrow()))
@@ -22,64 +22,127 @@ pub fn any(input: &str) -> Output<char> {
         .map_err(|err| err.but_expect(Character::Any))
 }
 
+pub fn is_decimal(ch: char) -> bool {
+    match ch as u8 {
+        b'0'..=b'9' => true,
+        _ => false,
+    }
+}
+
 pub fn decimal(input: &str) -> Output<char> {
-    take(char::is_ascii_digit)
+    take(is_decimal)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Decimal))
 }
 
+pub fn is_hexadecimal(ch: char) -> bool {
+    match ch as u8 {
+        b'0'..=b'9' | b'A'..=b'F' | b'a'..=b'f' => true,
+        _ => false,
+    }
+}
+
 pub fn hexadecimal(input: &str) -> Output<char> {
-    take(char::is_ascii_hexdigit)
+    take(is_hexadecimal)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Hexadecimal))
 }
 
+pub fn is_alphabetic(ch: char) -> bool {
+    match ch as u8 {
+        b'A'..=b'Z' | b'a'..=b'z' => true,
+        _ => false,
+    }
+}
+
 pub fn alphabetic(input: &str) -> Output<char> {
-    take(char::is_ascii_alphabetic)
+    take(is_alphabetic)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Alphabetic))
 }
 
+pub fn is_alphanumeric(ch: char) -> bool {
+    match ch as u8 {
+        b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' => true,
+        _ => false,
+    }
+}
+
 pub fn alphanumeric(input: &str) -> Output<char> {
-    take(char::is_ascii_alphanumeric)
+    take(is_alphanumeric)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Alphanumeric))
 }
 
+pub fn is_lowercase(ch: char) -> bool {
+    match ch as u8 {
+        b'a'..=b'z' => true,
+        _ => false,
+    }
+}
+
 pub fn lowercase(input: &str) -> Output<char> {
-    take(char::is_ascii_lowercase)
+    take(is_lowercase)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Lowercase))
 }
 
+pub fn is_uppercase(ch: char) -> bool {
+    match ch as u8 {
+        b'A'..=b'Z' => true,
+        _ => false,
+    }
+}
+
 pub fn uppercase(input: &str) -> Output<char> {
-    take(char::is_ascii_uppercase)
+    take(is_uppercase)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Uppercase))
 }
 
+pub fn is_indent(ch: char) -> bool {
+    match ch as u8 {
+        b' ' | b'\t' => true,
+        _ => false,
+    }
+}
+
 pub fn indent(input: &str) -> Output<char> {
-    take(is_ascii_indent)
+    take(is_indent)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Indent))
 }
 
+pub fn is_linebreak(ch: char) -> bool {
+    match ch as u8 {
+        b'\n' | b'\r' | b'\x0C' => true,
+        _ => false,
+    }
+}
+
 pub fn linebreak(input: &str) -> Output<char> {
-    take(is_ascii_linebreak)
+    take(is_linebreak)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Linebreak))
 }
 
+pub fn is_whitespace(ch: char) -> bool {
+    match ch as u8 {
+        b' ' | b'\t' | b'\n' | b'\r' | b'\x0C' => true,
+        _ => false,
+    }
+}
+
 pub fn whitespace(input: &str) -> Output<char> {
-    take(char::is_ascii_whitespace)
+    take(is_whitespace)
         .parse(input)
         .map(|(out, rem)| (out.chars().next().unwrap(), rem))
         .map_err(|err| err.but_expect(Character::Whitespace))
@@ -148,22 +211,6 @@ impl fmt::Display for Character {
 impl From<char> for Character {
     fn from(from: char) -> Self {
         Self::Custom(from)
-    }
-}
-
-#[allow(clippy::trivially_copy_pass_by_ref)]
-pub(crate) fn is_ascii_linebreak(ch: &char) -> bool {
-    match *ch as u8 {
-        b'\n' | b'\r' | b'\x0C' => true,
-        _ => false,
-    }
-}
-
-#[allow(clippy::trivially_copy_pass_by_ref)]
-pub(crate) fn is_ascii_indent(ch: &char) -> bool {
-    match *ch as u8 {
-        b' ' | b'\t' => true,
-        _ => false,
     }
 }
 
