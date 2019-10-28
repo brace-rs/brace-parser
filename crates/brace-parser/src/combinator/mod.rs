@@ -37,6 +37,16 @@ pub fn consume<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, &'a str> {
     }
 }
 
+pub fn not<'a>(parser: impl Parser<'a, char>) -> impl Parser<'a, char> {
+    move |input| match parser.parse(input) {
+        Ok((ch, _)) => Err(Error::found(ch)),
+        Err(_) => match input.chars().next() {
+            Some(ch) => Ok((ch, &input[ch.len_utf8()..])),
+            None => Err(Error::found_end()),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,5 +114,14 @@ mod tests {
         );
         assert_eq!(parse("", consume("")), Ok(("", "")));
         assert_eq!(parse("hello", consume("")), Ok(("", "hello")));
+    }
+
+    #[test]
+    fn test_not() {
+        assert_eq!(parse("", not('h')), Err(Error::found_end()));
+        assert_eq!(parse("h", not('h')), Err(Error::found('h')));
+        assert_eq!(parse("hello", not('h')), Err(Error::found('h')));
+        assert_eq!(parse("g", not('h')), Ok(('g', "")));
+        assert_eq!(parse("goodbye", not('h')), Ok(('g', "oodbye")));
     }
 }
