@@ -78,19 +78,38 @@ impl<'a> Parser<'a, ()> for () {
 
 impl<'a> Parser<'a, char> for char {
     fn parse(&self, input: &'a str) -> Output<'a, char> {
-        crate::character::character(self).parse(input)
+        take(|ch| ch == *self)
+            .parse(input)
+            .map(|(_, rem)| (*self, rem))
+            .map_err(|err| err.but_expect(*self))
     }
 }
 
 impl<'a, 'b> Parser<'a, &'a str> for &'b str {
     fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
-        crate::sequence::sequence(self).parse(input)
+        let mut iter = input.chars();
+        let mut idx = 0;
+
+        for ch in self.chars() {
+            match iter.next() {
+                Some(character) => {
+                    if ch == character {
+                        idx += ch.len_utf8();
+                    } else {
+                        return Err(Error::expect(ch).but_found(character));
+                    }
+                }
+                None => return Err(Error::expect(ch).but_found_end()),
+            }
+        }
+
+        Ok(input.split_at(idx))
     }
 }
 
 impl<'a> Parser<'a, &'a str> for String {
     fn parse(&self, input: &'a str) -> Output<'a, &'a str> {
-        crate::sequence::sequence(self).parse(input)
+        Parser::parse(&(&*self as &str), input)
     }
 }
 
