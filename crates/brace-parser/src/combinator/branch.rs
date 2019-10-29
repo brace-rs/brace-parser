@@ -6,13 +6,21 @@ pub fn branch<'a, O>(branch: impl Branch<'a, O>) -> impl Parser<'a, O> {
 }
 
 pub fn either<'a, O>(a: impl Parser<'a, O>, b: impl Parser<'a, O>) -> impl Parser<'a, O> {
-    move |input| a.parse(input).or_else(|_| b.parse(input))
+    move |input| {
+        a.parse(input).or_else(|err| match err {
+            Error::Pass(_) => b.parse(input),
+            Error::Fail(inner) => Err(Error::Fail(inner)),
+        })
+    }
 }
 
 pub fn optional<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Option<O>> {
     move |input| match parser.parse(input) {
         Ok((out, rem)) => Ok((Some(out), rem)),
-        Err(_) => Ok((None, input)),
+        Err(err) => match err {
+            Error::Pass(_) => Ok((None, input)),
+            Error::Fail(inner) => Err(Error::Fail(inner)),
+        },
     }
 }
 
@@ -34,10 +42,10 @@ where
         let mut out = Err(Error::invalid());
 
         for parser in self {
-            out = parser.parse(input);
-
-            if out.is_ok() {
-                return out;
+            match parser.parse(input) {
+                Ok(res) => return Ok(res),
+                Err(Error::Fail(inner)) => return Err(Error::Fail(inner)),
+                Err(Error::Pass(inner)) => out = Err(Error::Pass(inner)),
             }
         }
 
@@ -81,6 +89,7 @@ macro_rules! impl_branch {
     (@inner $self:expr; $input:expr; $i:tt, $($idx:tt,)+) => {
         match $self.$i.parse($input) {
             Ok(res) => Ok(res),
+            Err(Error::Fail(inner)) => Err(Error::Fail(inner)),
             Err(_) => impl_branch!(@inner $self; $input; $($idx,)+),
         }
     };
@@ -107,6 +116,14 @@ mod tests {
     use crate::error::Error;
     use crate::parser::parse;
 
+    fn pass(_: &str) -> Output<&str> {
+        Err(Error::expect('!'))
+    }
+
+    fn fail(_: &str) -> Output<&str> {
+        Err(Error::invalid())
+    }
+
     #[test]
     fn test_branch() {
         assert_eq!(parse("", branch(Vec::<&str>::new())), Err(Error::invalid()));
@@ -128,6 +145,8 @@ mod tests {
             parse("d", branch(vec!["a", "b", "c"])),
             Err(Error::expect('c').but_found('d'))
         );
+        assert_eq!(parse("a", branch(vec![pass])), Err(Error::expect('!')));
+        assert_eq!(parse("a", branch(vec![fail])), Err(Error::invalid()));
         assert_eq!(parse("", branch(())), Ok(((), "")));
         assert_eq!(parse("hello", branch(())), Ok(((), "hello")));
         assert_eq!(
@@ -144,6 +163,10 @@ mod tests {
             parse("d", branch(("a", "b", "c"))),
             Err(Error::expect('c').but_found('d'))
         );
+        assert_eq!(parse("a", branch(("a", pass, "b"))), Ok(("a", "")));
+        assert_eq!(parse("b", branch(("a", pass, "b"))), Ok(("b", "")));
+        assert_eq!(parse("a", branch(("a", fail, "b"))), Ok(("a", "")));
+        assert_eq!(parse("b", branch(("a", fail, "b"))), Err(Error::invalid()));
     }
 
     #[test]
@@ -167,6 +190,8 @@ mod tests {
             Err(Error::expect('o').but_found('t'))
         );
         assert_eq!(parse("onetwo", either("one", "two")), Ok(("one", "two")));
+        assert_eq!(parse("one", either(pass, "one")), Ok(("one", "")));
+        assert_eq!(parse("one", either(fail, "one")), Err(Error::invalid()));
     }
 
     #[test]
@@ -178,5 +203,7 @@ mod tests {
             parse("hello world", optional("hello")),
             Ok((Some("hello"), " world"))
         );
+        assert_eq!(parse("", optional(pass)), Ok((None, "")));
+        assert_eq!(parse("", optional(fail)), Err(Error::invalid()));
     }
 }
