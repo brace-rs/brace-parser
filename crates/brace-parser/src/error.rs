@@ -75,6 +75,34 @@ impl Error {
 
         self
     }
+
+    pub fn is_soft(&self) -> bool {
+        match self {
+            Self::Soft(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_soft(&self) -> Option<&InnerError> {
+        match self {
+            Self::Soft(inner) => Some(inner),
+            _ => None,
+        }
+    }
+
+    pub fn is_hard(&self) -> bool {
+        match self {
+            Self::Hard(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_hard(&self) -> Option<&InnerError> {
+        match self {
+            Self::Hard(inner) => Some(inner),
+            _ => None,
+        }
+    }
 }
 
 impl error::Error for Error {}
