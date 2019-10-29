@@ -6,20 +6,20 @@ use crate::sequence::Sequence;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    Soft(InnerError),
-    Hard(InnerError),
+    Pass(InnerError),
+    Fail(InnerError),
 }
 
 impl Error {
     pub fn invalid() -> Self {
-        Self::Hard(InnerError(Some(Expect::Valid), None))
+        Self::Fail(InnerError(Some(Expect::Valid), None))
     }
 
     pub fn context<T>(ctx: T, err: Error) -> Self
     where
         T: Into<String>,
     {
-        Self::Soft(InnerError(
+        Self::Pass(InnerError(
             Some(Expect::Context(ctx.into(), Box::new(err))),
             None,
         ))
@@ -29,18 +29,18 @@ impl Error {
     where
         T: Into<Expect>,
     {
-        Self::Soft(InnerError(Some(expect.into()), None))
+        Self::Pass(InnerError(Some(expect.into()), None))
     }
 
     pub fn found<T>(found: T) -> Self
     where
         T: Into<Expect>,
     {
-        Self::Soft(InnerError(None, Some(found.into())))
+        Self::Pass(InnerError(None, Some(found.into())))
     }
 
     pub fn found_end() -> Self {
-        Self::Soft(InnerError(None, Some(Expect::End)))
+        Self::Pass(InnerError(None, Some(Expect::End)))
     }
 
     pub fn but_expect<T>(mut self, expect: T) -> Self
@@ -48,8 +48,8 @@ impl Error {
         T: Into<Expect>,
     {
         match self {
-            Self::Soft(ref mut inner) => inner.0 = Some(expect.into()),
-            Self::Hard(ref mut inner) => inner.0 = Some(expect.into()),
+            Self::Pass(ref mut inner) => inner.0 = Some(expect.into()),
+            Self::Fail(ref mut inner) => inner.0 = Some(expect.into()),
         }
 
         self
@@ -60,8 +60,8 @@ impl Error {
         T: Into<Expect>,
     {
         match self {
-            Self::Soft(ref mut inner) => inner.1 = Some(found.into()),
-            Self::Hard(ref mut inner) => inner.1 = Some(found.into()),
+            Self::Pass(ref mut inner) => inner.1 = Some(found.into()),
+            Self::Fail(ref mut inner) => inner.1 = Some(found.into()),
         }
 
         self
@@ -69,37 +69,37 @@ impl Error {
 
     pub fn but_found_end(mut self) -> Self {
         match self {
-            Self::Soft(ref mut inner) => inner.1 = Some(Expect::End),
-            Self::Hard(ref mut inner) => inner.1 = Some(Expect::End),
+            Self::Pass(ref mut inner) => inner.1 = Some(Expect::End),
+            Self::Fail(ref mut inner) => inner.1 = Some(Expect::End),
         }
 
         self
     }
 
-    pub fn is_soft(&self) -> bool {
+    pub fn is_pass(&self) -> bool {
         match self {
-            Self::Soft(_) => true,
+            Self::Pass(_) => true,
             _ => false,
         }
     }
 
-    pub fn as_soft(&self) -> Option<&InnerError> {
+    pub fn as_pass(&self) -> Option<&InnerError> {
         match self {
-            Self::Soft(inner) => Some(inner),
+            Self::Pass(inner) => Some(inner),
             _ => None,
         }
     }
 
-    pub fn is_hard(&self) -> bool {
+    pub fn is_fail(&self) -> bool {
         match self {
-            Self::Hard(_) => true,
+            Self::Fail(_) => true,
             _ => false,
         }
     }
 
-    pub fn as_hard(&self) -> Option<&InnerError> {
+    pub fn as_fail(&self) -> Option<&InnerError> {
         match self {
-            Self::Hard(inner) => Some(inner),
+            Self::Fail(inner) => Some(inner),
             _ => None,
         }
     }
@@ -110,8 +110,8 @@ impl error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Soft(inner) => write!(f, "{}", inner),
-            Self::Hard(inner) => write!(f, "{}", inner),
+            Self::Pass(inner) => write!(f, "{}", inner),
+            Self::Fail(inner) => write!(f, "{}", inner),
         }
     }
 }
