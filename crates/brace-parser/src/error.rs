@@ -90,6 +90,13 @@ impl Error {
         }
     }
 
+    pub fn into_pass(self) -> Self {
+        match self {
+            Self::Fail(inner) => Self::Pass(inner),
+            _ => self,
+        }
+    }
+
     pub fn is_fail(&self) -> bool {
         match self {
             Self::Fail(_) => true,
@@ -101,6 +108,13 @@ impl Error {
         match self {
             Self::Fail(inner) => Some(inner),
             _ => None,
+        }
+    }
+
+    pub fn into_fail(self) -> Self {
+        match self {
+            Self::Pass(inner) => Self::Fail(inner),
+            _ => self,
         }
     }
 }
