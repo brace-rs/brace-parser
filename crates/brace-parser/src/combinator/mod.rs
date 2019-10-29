@@ -127,11 +127,21 @@ pub fn unescape<'a>(
     }
 }
 
+pub fn pass<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, O> {
+    move |input| parser.parse(input).map_err(|err| err.into_pass())
+}
+
+pub fn fail<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, O> {
+    move |input| parser.parse(input).map_err(|err| err.into_fail())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::branch::either;
+    use super::branch::{either, optional};
+    use super::series::leading;
     use super::*;
     use crate::parser::parse;
+    use crate::sequence::{alphabetic, Sequence};
 
     #[test]
     fn test_map() {
@@ -334,6 +344,85 @@ mod tests {
                 unescape(escaped(not('\n'), 'n'), map('n', |_| '\n'))
             ),
             Ok(("\nhello\nworld\n".to_owned(), ""))
+        );
+    }
+
+    #[test]
+    fn test_pass() {
+        assert_eq!(
+            parse(
+                "",
+                (alphabetic, optional(leading(':', pass(fail(alphabetic)))))
+            ),
+            Err(Error::expect(Sequence::Alphabetic).but_found_end())
+        );
+        assert_eq!(
+            parse(
+                "hello",
+                (alphabetic, optional(leading(':', pass(fail(alphabetic)))))
+            ),
+            Ok((("hello", None), ""))
+        );
+        assert_eq!(
+            parse(
+                "hello:",
+                (alphabetic, optional(leading(':', pass(fail(alphabetic)))))
+            ),
+            Ok((("hello", None), ":"))
+        );
+        assert_eq!(
+            parse(
+                "hello:world",
+                (alphabetic, optional(leading(':', pass(fail(alphabetic)))))
+            ),
+            Ok((("hello", Some("world")), ""))
+        );
+        assert_eq!(
+            parse(
+                "hello:123",
+                (alphabetic, optional(leading(':', pass(fail(alphabetic)))))
+            ),
+            Ok((("hello", None), ":123"))
+        );
+    }
+
+    #[test]
+    fn test_fail() {
+        assert_eq!(
+            parse("", (alphabetic, optional(leading(':', fail(alphabetic))))),
+            Err(Error::expect(Sequence::Alphabetic).but_found_end())
+        );
+        assert_eq!(
+            parse(
+                "hello",
+                (alphabetic, optional(leading(':', fail(alphabetic))))
+            ),
+            Ok((("hello", None), ""))
+        );
+        assert_eq!(
+            parse(
+                "hello:",
+                (alphabetic, optional(leading(':', fail(alphabetic))))
+            ),
+            Err(Error::expect(Sequence::Alphabetic)
+                .but_found_end()
+                .into_fail())
+        );
+        assert_eq!(
+            parse(
+                "hello:world",
+                (alphabetic, optional(leading(':', fail(alphabetic))))
+            ),
+            Ok((("hello", Some("world")), ""))
+        );
+        assert_eq!(
+            parse(
+                "hello:123",
+                (alphabetic, optional(leading(':', fail(alphabetic))))
+            ),
+            Err(Error::expect(Sequence::Alphabetic)
+                .but_found('1')
+                .into_fail())
         );
     }
 }
