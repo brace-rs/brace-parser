@@ -50,6 +50,25 @@ pub fn delimited<'a, A, B, C>(
     leading(a, trailing(b, c))
 }
 
+pub fn repeat<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, Vec<O>> {
+    move |input| {
+        parser.parse(input).and_then(|(out, mut rem)| {
+            let mut out = vec![out];
+
+            loop {
+                match parser.parse(rem) {
+                    Ok((item, next)) => {
+                        out.push(item);
+                        rem = next;
+                    }
+                    Err(Error::Pass(_)) => return Ok((out, rem)),
+                    Err(err) => return Err(err),
+                }
+            }
+        })
+    }
+}
+
 pub fn list<'a, T, S>(
     parser: impl Parser<'a, T>,
     separator: impl Parser<'a, S>,
@@ -452,6 +471,26 @@ mod tests {
         assert_eq!(
             parse("hello", delimited('"', "hello", '"')),
             Err(Error::expect('"').but_found('h'))
+        );
+    }
+
+    #[test]
+    fn test_repeat() {
+        assert_eq!(
+            parse("", repeat("a,")),
+            Err(Error::expect('a').but_found_end())
+        );
+        assert_eq!(
+            parse("a", repeat("a,")),
+            Err(Error::expect(',').but_found_end())
+        );
+        assert_eq!(parse("a,", repeat("a,")), Ok((vec!["a,"], "")));
+        assert_eq!(parse("a,b", repeat("a,")), Ok((vec!["a,"], "b")));
+        assert_eq!(parse("a,a", repeat("a,")), Ok((vec!["a,"], "a")));
+        assert_eq!(parse("a,a,", repeat("a,")), Ok((vec!["a,", "a,"], "")));
+        assert_eq!(
+            parse("a,a,a,b", repeat("a,")),
+            Ok((vec!["a,", "a,", "a,"], "b"))
         );
     }
 
