@@ -135,6 +135,10 @@ pub fn fail<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, O> {
     move |input| parser.parse(input).map_err(|err| err.into_fail())
 }
 
+pub fn peek<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, O> {
+    move |input| parser.parse(input).map(|(out, _)| (out, input))
+}
+
 #[cfg(test)]
 mod tests {
     use super::branch::{either, optional};
@@ -423,6 +427,26 @@ mod tests {
             Err(Error::expect(Sequence::Alphabetic)
                 .but_found('1')
                 .into_fail())
+        );
+    }
+
+    #[test]
+    fn test_peek() {
+        assert_eq!(
+            parse("", ("hello", peek(" world"))),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("hello", ("hello", peek(" world"))),
+            Err(Error::expect(' ').but_found_end())
+        );
+        assert_eq!(
+            parse("hello universe", ("hello", peek(" world"))),
+            Err(Error::expect('w').but_found('u'))
+        );
+        assert_eq!(
+            parse("hello world", ("hello", peek(" world"))),
+            Ok((("hello", " world"), " world"))
         );
     }
 }
