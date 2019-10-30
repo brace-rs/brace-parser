@@ -12,5 +12,6 @@ pub mod prelude {
     };
     pub use crate::error::{Error, Expect};
     pub use crate::parser::{parse, take, take_while, Output, Parser};
+    pub use crate::sequence::end;
     pub use crate::{character, sequence};
 }
