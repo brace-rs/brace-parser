@@ -6,7 +6,9 @@ pub mod sequence;
 
 pub mod prelude {
     pub use crate::combinator::branch::{branch, either, optional};
-    pub use crate::combinator::series::{delimited, leading, list, pair, series, trailing, trio};
+    pub use crate::combinator::series::{
+        delimited, leading, list, pair, repeat, series, trailing, trio,
+    };
     pub use crate::combinator::{
         consume, context, escaped, fail, map, map_err, not, pass, peek, unescape,
     };
