@@ -140,10 +140,27 @@ pub fn peek<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, O> {
     move |input| parser.parse(input).map(|(out, _)| (out, input))
 }
 
+pub fn fold<'a, O, T, F>(parser: impl Parser<'a, Vec<T>>, fold: F) -> impl Parser<'a, O>
+where
+    F: Copy + FnMut(O, T) -> O,
+    T: Into<O>,
+{
+    move |input| {
+        parser.parse(input).and_then(|(out, rem)| {
+            let mut iter = out.into_iter();
+
+            match iter.next() {
+                Some(next) => Ok((iter.fold(next.into(), fold), rem)),
+                None => Err(Error::invalid().into_pass()),
+            }
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::branch::{either, optional};
-    use super::series::leading;
+    use super::series::{leading, repeat};
     use super::*;
     use crate::parser::parse;
     use crate::sequence::{alphabetic, Sequence};
@@ -456,6 +473,42 @@ mod tests {
         assert_eq!(
             parse("hello world", ("hello", peek(" world"))),
             Ok((("hello", " world"), " world"))
+        );
+    }
+
+    #[test]
+    fn test_fold() {
+        assert_eq!(
+            parse("", fold(repeat("a,"), |acc: String, item| acc + "+" + item)),
+            Err(Error::expect('a').but_found_end())
+        );
+        assert_eq!(
+            parse(
+                "a",
+                fold(repeat("a,"), |acc: String, item| acc + "+" + item)
+            ),
+            Err(Error::expect(',').but_found_end())
+        );
+        assert_eq!(
+            parse(
+                "a,",
+                fold(repeat("a,"), |acc: String, item| acc + "+" + item)
+            ),
+            Ok((String::from("a,"), ""))
+        );
+        assert_eq!(
+            parse(
+                "a,a,",
+                fold(repeat("a,"), |acc: String, item| acc + "+" + item)
+            ),
+            Ok((String::from("a,+a,"), ""))
+        );
+        assert_eq!(
+            parse(
+                "a,a,a,",
+                fold(repeat("a,"), |acc: String, item| acc + "+" + item)
+            ),
+            Ok((String::from("a,+a,+a,"), ""))
         );
     }
 }
