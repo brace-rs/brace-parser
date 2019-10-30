@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::error::{Error, Expect};
 use crate::parser::{take_while, Output, Parser};
 
 pub fn any(input: &str) -> Output<&str> {
@@ -60,6 +61,13 @@ pub fn whitespace(input: &str) -> Output<&str> {
     take_while(crate::character::is_whitespace)
         .parse(input)
         .map_err(|err| err.but_expect(Sequence::Whitespace))
+}
+
+pub fn end(input: &str) -> Output<&str> {
+    match input.chars().next() {
+        Some(ch) => Err(Error::expect(Expect::End).but_found(ch)),
+        None => Ok((input, input)),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -830,5 +838,19 @@ mod tests {
             Ok(("hello", "$"))
         );
         assert_eq!(parse("hello", Sequence::custom("")), Ok(("", "hello")));
+    }
+
+    #[test]
+    fn test_end() {
+        assert_eq!(parse("", end), Ok(("", "")));
+        assert_eq!(
+            parse("hello", end),
+            Err(Error::expect(Expect::End).but_found('h'))
+        );
+        assert_eq!(parse("hello", ("hello", end)), Ok((("hello", ""), "")));
+        assert_eq!(
+            parse("hello world", ("hello", end)),
+            Err(Error::expect(Expect::End).but_found(' '))
+        );
     }
 }
