@@ -23,9 +23,10 @@ where
     C: AsRef<str>,
 {
     move |input| {
-        parser
-            .parse(input)
-            .map_err(|err| Error::context(ctx.as_ref(), err))
+        parser.parse(input).map_err(|err| match err.get_context() {
+            Some(_) => err,
+            None => err.with_context(ctx.as_ref()),
+        })
     }
 }
 
@@ -175,17 +176,25 @@ mod tests {
     fn test_context() {
         assert_eq!(
             parse("", context("greeting", "hello")),
-            Err(Error::context(
-                "greeting",
-                Error::expect('h').but_found_end()
-            ))
+            Err(Error::expect('h').but_found_end().with_context("greeting"))
         );
         assert_eq!(
             parse("h", context("greeting", "hello")),
-            Err(Error::context(
-                "greeting",
-                Error::expect('e').but_found_end()
-            ))
+            Err(Error::expect('e').but_found_end().with_context("greeting"))
+        );
+        assert_eq!(
+            parse(
+                "on",
+                context("outer", either("one", context("inner", "two")))
+            ),
+            Err(Error::expect('t').but_found('o').with_context("inner")),
+        );
+        assert_eq!(
+            parse(
+                "tw",
+                context("outer", either(context("inner", "one"), "two"))
+            ),
+            Err(Error::expect('o').but_found_end().with_context("outer")),
         );
     }
 

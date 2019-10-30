@@ -12,35 +12,32 @@ pub enum Error {
 
 impl Error {
     pub fn invalid() -> Self {
-        Self::Fail(InnerError(Some(Expect::Valid), None))
+        Self::Fail(InnerError(Some(Expect::Valid), None, None))
     }
 
-    pub fn context<T>(ctx: T, err: Error) -> Self
+    pub fn context<T>(ctx: T) -> Self
     where
         T: Into<String>,
     {
-        Self::Pass(InnerError(
-            Some(Expect::Context(ctx.into(), Box::new(err))),
-            None,
-        ))
+        Self::Pass(InnerError(None, None, Some(ctx.into())))
     }
 
     pub fn expect<T>(expect: T) -> Self
     where
         T: Into<Expect>,
     {
-        Self::Pass(InnerError(Some(expect.into()), None))
+        Self::Pass(InnerError(Some(expect.into()), None, None))
     }
 
     pub fn found<T>(found: T) -> Self
     where
         T: Into<Expect>,
     {
-        Self::Pass(InnerError(None, Some(found.into())))
+        Self::Pass(InnerError(None, Some(found.into()), None))
     }
 
     pub fn found_end() -> Self {
-        Self::Pass(InnerError(None, Some(Expect::End)))
+        Self::Pass(InnerError(None, Some(Expect::End), None))
     }
 
     pub fn but_expect<T>(mut self, expect: T) -> Self
@@ -71,6 +68,37 @@ impl Error {
         match self {
             Self::Pass(ref mut inner) => inner.1 = Some(Expect::End),
             Self::Fail(ref mut inner) => inner.1 = Some(Expect::End),
+        }
+
+        self
+    }
+
+    pub fn with_context<T>(mut self, ctx: T) -> Self
+    where
+        T: Into<String>,
+    {
+        match self {
+            Self::Pass(ref mut inner) => inner.2 = Some(ctx.into()),
+            Self::Fail(ref mut inner) => inner.2 = Some(ctx.into()),
+        }
+
+        self
+    }
+
+    pub fn get_context(&self) -> Option<&str> {
+        match self {
+            Self::Pass(inner) => inner.2.as_ref().map(|ctx| ctx.as_ref()),
+            Self::Fail(inner) => inner.2.as_ref().map(|ctx| ctx.as_ref()),
+        }
+    }
+
+    pub fn set_context<T>(&mut self, ctx: T) -> &mut Self
+    where
+        T: Into<String>,
+    {
+        match self {
+            Self::Pass(ref mut inner) => inner.2 = Some(ctx.into()),
+            Self::Fail(ref mut inner) => inner.2 = Some(ctx.into()),
         }
 
         self
@@ -131,11 +159,15 @@ impl fmt::Display for Error {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct InnerError(Option<Expect>, Option<Expect>);
+pub struct InnerError(Option<Expect>, Option<Expect>, Option<String>);
 
 impl fmt::Display for InnerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Error:")?;
+
+        if let Some(ctx) = &self.2 {
+            write!(f, " in {}", ctx)?;
+        }
 
         if let Some(expect) = &self.0 {
             write!(f, "\nExpected {}", expect)?;
@@ -155,7 +187,6 @@ pub enum Expect {
     Valid,
     Character(Character),
     Sequence(Sequence),
-    Context(String, Box<Error>),
 }
 
 impl fmt::Display for Expect {
@@ -165,7 +196,6 @@ impl fmt::Display for Expect {
             Self::Valid => write!(f, "valid parser"),
             Self::Character(ch) => write!(f, "character: {}", ch),
             Self::Sequence(seq) => write!(f, "sequence: {}", seq),
-            Self::Context(ctx, _) => write!(f, "{}", ctx),
         }
     }
 }
