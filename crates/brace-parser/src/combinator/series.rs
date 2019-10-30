@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::parser::{Output, Parser};
 
 pub fn series<'a, O>(series: impl Series<'a, O>) -> impl Parser<'a, O> {
@@ -58,16 +59,20 @@ pub fn list<'a, T, S>(
             let mut out = vec![out];
 
             loop {
-                if let Ok((_, next)) = separator.parse(rem) {
-                    if let Ok((item, next)) = parser.parse(next) {
-                        out.push(item);
-                        rem = next;
+                match separator.parse(rem) {
+                    Ok((_, next)) => match parser.parse(next) {
+                        Ok((item, next)) => {
+                            out.push(item);
+                            rem = next;
 
-                        continue;
-                    }
+                            continue;
+                        }
+                        Err(Error::Pass(_)) => return Ok((out, rem)),
+                        Err(err) => return Err(err),
+                    },
+                    Err(Error::Pass(_)) => return Ok((out, rem)),
+                    Err(err) => return Err(err),
                 }
-
-                return Ok((out, rem));
             }
         })
     }
@@ -167,6 +172,7 @@ impl_series! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::combinator::fail;
     use crate::error::Error;
     use crate::parser::parse;
     use crate::sequence::{alphabetic, whitespace};
@@ -468,6 +474,14 @@ mod tests {
         assert_eq!(
             parse("a,a,a,b", list('a', ',')),
             Ok((vec!['a', 'a', 'a'], ",b"))
+        );
+        assert_eq!(
+            parse("a,a,a b", list('a', fail(','))),
+            Err(Error::expect(',').but_found(' ').into_fail())
+        );
+        assert_eq!(
+            parse("a,a,a,b", list(fail('a'), ',')),
+            Err(Error::expect('a').but_found('b').into_fail())
         );
     }
 }
