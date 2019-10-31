@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{Error, Expect};
 use crate::parser::Parser;
 
 pub mod branch;
@@ -154,6 +154,17 @@ where
                 None => Err(Error::invalid().into_pass()),
             }
         })
+    }
+}
+
+pub fn complete<'a, O>(parser: impl Parser<'a, O>) -> impl Parser<'a, O> {
+    move |input| {
+        parser
+            .parse(input)
+            .and_then(|(out, rem)| match rem.chars().next() {
+                Some(ch) => Err(Error::expect(Expect::End).but_found(ch)),
+                None => Ok((out, rem)),
+            })
     }
 }
 
@@ -509,6 +520,27 @@ mod tests {
                 fold(repeat("a,"), |acc: String, item| acc + "+" + item)
             ),
             Ok((String::from("a,+a,+a,"), ""))
+        );
+    }
+
+    #[test]
+    fn test_complete() {
+        assert_eq!(
+            parse("", complete("hello")),
+            Err(Error::expect('h').but_found_end())
+        );
+        assert_eq!(
+            parse("$", complete("hello")),
+            Err(Error::expect('h').but_found('$'))
+        );
+        assert_eq!(
+            parse("h", complete("hello")),
+            Err(Error::expect('e').but_found_end())
+        );
+        assert_eq!(parse("hello", complete("hello")), Ok(("hello", "")));
+        assert_eq!(
+            parse("hello world", complete("hello")),
+            Err(Error::expect(Expect::End).but_found(' '))
         );
     }
 }

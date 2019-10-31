@@ -10,7 +10,7 @@ pub mod prelude {
         delimited, leading, list, pair, repeat, series, trailing, trio,
     };
     pub use crate::combinator::{
-        consume, context, escaped, fail, fold, map, map_err, not, pass, peek, unescape,
+        complete, consume, context, escaped, fail, fold, map, map_err, not, pass, peek, unescape,
     };
     pub use crate::error::{Error, Expect};
     pub use crate::parser::{parse, take, take_while, Output, Parser};
